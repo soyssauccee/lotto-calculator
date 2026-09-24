@@ -3,6 +3,9 @@
 Which Ontario lottery is the better buy for the next draw, **Lotto 6/49** or **Lotto Max**,
 based on real jackpots, real sales and real odds.
 
+**Live page: https://soyssauccee.github.io/lotto-calculator/** (on an iPhone, Share → Add to Home
+Screen makes it an app).
+
 ## Status
 
 | Milestone | What | State |
@@ -132,6 +135,20 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
 | Lotto Max jackpot | $10M | $20M | $30M | $40M | $50M | $55M | $60M | $65M | $70M |
 |---|---|---|---|---|---|---|---|---|---|
 | Lotto Max | $0.05 | $0.10 | $0.16 | $0.21 | $0.27 | $0.30 | $0.33 | $0.37 | $0.39 |
+
+## Web page
+
+`index.html` and `web/` make up a single static page with no build step. It reads
+`data/next.json` and `data/draws.json` and shows:
+
+- the verdict and the value gap, with a Big prizes / All prizes toggle
+- a card per game: prizes, value per $1 with its range and parts, odds for $6, and the sales
+  forecast
+- a chart of value per $1 over recent draws (tap a point for details)
+- when the data was last updated, with warnings for failed or stale updates
+
+`.github/workflows/pages.yml` publishes `index.html`, `web/` and `data/` to GitHub Pages. To
+preview locally, run `.venv\Scripts\python -m http.server 8000` and open http://localhost:8000.
 
 ## Sources
 
