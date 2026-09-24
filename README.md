@@ -69,8 +69,9 @@ Records hold the winning numbers, `tier_winners` and `tier_prizes` per prize cat
   `balls_remaining` at that draw, and `super_draw` / `super_draw_prizes`.
 - Lotto Max: `jackpot`, `maxmillions_count`/`_won`, `maxplus_count`/`_won`, `maxplus_prize`.
 - Both: `est_plays`, the plays sold (a $3 6/49 play or a $6 four-line Lotto Max play), and
-  `est_plays_check`, a rough cross-check from winners ÷ odds; `value_per_dollar`, what a
-  ticket for that draw was worth in big prizes, given the plays actually sold.
+  `est_plays_check`, a rough cross-check from winners ÷ odds; `value_per_dollar` and
+  `value_per_dollar_all_prizes`, what a ticket for that draw was worth per $1 in big prizes
+  and counting every prize, given the plays actually sold.
 
 `est_plays` is recovered exactly from the prizes (`lottocalc/sales.py`). The game conditions
 send a fixed amount per play to a Prize Fund ($0.55 for 6/49, $1.19 for Lotto Max). The fixed
@@ -150,7 +151,8 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
 - the verdict and the value gap, with a Big prizes / All prizes toggle
 - a card per game: prizes, value per $1 with its range and parts, odds for $6, and the sales
   forecast
-- a chart of value per $1 over recent draws (tap a point for details)
+- two charts of value per $1 over recent draws, one for big prizes (with the $0.30 minimum)
+  and one for the whole ticket with every prize (tap a point for details)
 - when the data was last updated, with warnings for failed or stale updates
 
 `.github/workflows/pages.yml` publishes `index.html`, `web/` and `data/` to GitHub Pages. To

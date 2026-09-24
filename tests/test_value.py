@@ -152,6 +152,9 @@ def test_annotate_history():
     ]
     value.annotate(records)
     assert [r["value_per_dollar"] for r in records] == [0.3686, None, 0.3316]
+    # the whole ticket adds the smaller prizes: 0.368577 + 0.181172 (6/49 at 4.5M plays)
+    # and 0.331609 + 0.196049 (Lotto Max at 5.34M), rounded after adding
+    assert [r["value_per_dollar_all_prizes"] for r in records] == [0.5497, None, 0.5277]
 
 
 @pytest.fixture(scope="module")

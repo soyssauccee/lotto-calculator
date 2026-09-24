@@ -98,11 +98,15 @@ def top_prize_value(game, parts):
 
 
 def annotate(records):
-    """Set value_per_dollar (top prizes, with the plays actually sold) on each record, in place."""
+    """Set value_per_dollar (big prizes) and value_per_dollar_all_prizes (the whole ticket)
+    on each record, in place, with the plays the draw actually sold."""
     for record in records:
         game, plays = record["game"], record.get("est_plays")
         known = plays and (game == model.LOTTO_MAX or record.get("balls_remaining"))
-        record["value_per_dollar"] = round(top_prize_value(game, evaluate(game, record, plays)[0]), 4) if known else None
+        parts = evaluate(game, record, plays)[0] if known else None
+        top = top_prize_value(game, parts) if parts else None
+        record["value_per_dollar"] = round(top, 4) if parts else None
+        record["value_per_dollar_all_prizes"] = round(top + parts["lower_tiers"], 4) if parts else None
 
 
 def next_draw_value(game, info):

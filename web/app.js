@@ -250,9 +250,16 @@ function gameHtml(game, info, basis) {
     </section>`;
 }
 
-// ---------- chart ----------
+// ---------- charts ----------
 
-function chartSeries(draws, next) {
+// What a ticket was worth per $1 at each draw: in big prizes (with the play minimum), and
+// counting every prize. `draw` and `next` name the value fields in draws.json and next.json.
+const CHARTS = [
+  { el: "chart", readout: "readout", draw: "value_per_dollar", next: "per_dollar", allPrizes: false },
+  { el: "chart-all", readout: "readout-all", draw: "value_per_dollar_all_prizes", next: "per_dollar_all_prizes", allPrizes: true },
+];
+
+function chartSeries(draws, next, chart) {
   const dates = draws.map((d) => d.draw_date).sort();
   const latest = dates[dates.length - 1];
   const cutoff = new Date(Date.parse(latest) - CHART_WEEKS * 7 * 864e5).toISOString().slice(0, 10);
@@ -260,14 +267,15 @@ function chartSeries(draws, next) {
   return Object.keys(GAMES).map((game) => ({
     game,
     points: draws
-      .filter((d) => d.game === game && d.draw_date >= from && d.value_per_dollar != null)
-      .map((d) => ({ t: Date.parse(d.draw_date), v: d.value_per_dollar, draw: d })),
-    next: next[game] && next[game].value ? { t: Date.parse(next[game].draw_date), v: next[game].value.per_dollar, info: next[game] } : null,
+      .filter((d) => d.game === game && d.draw_date >= from && d[chart.draw] != null)
+      .map((d) => ({ t: Date.parse(d.draw_date), v: d[chart.draw], draw: d })),
+    next: next[game] && next[game].value ? { t: Date.parse(next[game].draw_date), v: next[game].value[chart.next], info: next[game] } : null,
   }));
 }
 
-function renderChart(el, draws, next) {
-  const series = chartSeries(draws, next);
+function renderChart(chart, draws, next) {
+  const el = document.getElementById(chart.el);
+  const series = chartSeries(draws, next, chart);
   const all = series.flatMap((s) => s.points.concat(s.next ? [s.next] : []));
   if (!all.length) {
     el.innerHTML = `<p class="muted small">No history yet.</p>`;
@@ -277,8 +285,8 @@ function renderChart(el, draws, next) {
   const t0 = Math.min(...all.map((p) => p.t));
   const t1 = Math.max(...all.map((p) => p.t));
   const step = 0.1;
-  const minimum = minimumToPlay(next);
-  const vMax = Math.max(step * 2, Math.ceil((Math.max(minimum, ...all.map((p) => p.v)) * 1.05) / step) * step);
+  const minimum = chart.allPrizes ? null : minimumToPlay(next); // the minimum is judged on big prizes
+  const vMax = Math.max(step * 2, Math.ceil((Math.max(minimum ?? 0, ...all.map((p) => p.v)) * 1.05) / step) * step);
   const x = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);
   const y = (v) => T + (1 - v / vMax) * (H - T - B);
 
@@ -309,17 +317,19 @@ function renderChart(el, draws, next) {
     })
     .join("");
 
-  const minimumLine = `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
+  const minimumLine = minimum == null ? "" : `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
+  const minimumKey = minimum == null ? "" : `<span class="minkey">${perDollar(minimum)} minimum</span>`;
+  const described = chart.allPrizes ? "with all prizes" : "in big prizes";
 
   el.innerHTML = `
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Value per dollar of each game's recent draws">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Value per dollar ${described} of each game's recent draws">
       ${grid.join("")}${months.join("")}${minimumLine}${shapes}
-      <circle id="focus" class="focus" r="6" cx="-20" cy="-20"/>
+      <circle class="focus" r="6" cx="-20" cy="-20"/>
     </svg>
-    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="${GAMES[g].css}">${GAMES[g].name}</span>`).join("")}<span class="minkey">${perDollar(minimum)} minimum</span></div>`;
+    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="${GAMES[g].css}">${GAMES[g].name}</span>`).join("")}${minimumKey}</div>`;
 
   const svg = el.querySelector("svg");
-  const focus = el.querySelector("#focus");
+  const focus = el.querySelector(".focus");
   const targets = series.flatMap((s) =>
     s.points.map((p) => ({ ...p, game: s.game })).concat(s.next ? [{ ...s.next, game: s.game, upcoming: true }] : []),
   );
@@ -336,7 +346,7 @@ function renderChart(el, draws, next) {
     if (!best) return;
     focus.setAttribute("cx", x(best.t));
     focus.setAttribute("cy", y(best.v));
-    document.getElementById("readout").innerHTML = esc(readoutText(best));
+    document.getElementById(chart.readout).innerHTML = esc(readoutText(best, chart));
   };
   svg.addEventListener("pointerdown", pick);
   svg.addEventListener("pointermove", (event) => {
@@ -344,20 +354,27 @@ function renderChart(el, draws, next) {
   });
 }
 
-function readoutText(p) {
+function worthText(chart, big, all) {
+  if (!chart.allPrizes) return `${perDollar(big)} per $1`;
+  return `${perDollar(all)} per $1 with all prizes (${perDollar(big)} big + ${perDollar(all - big)} smaller)`;
+}
+
+function readoutText(p, chart) {
   const name = GAMES[p.game].name;
   if (p.upcoming) {
-    return `${name}, next draw ${dayText(p.info.draw_date)}: ${prizeLine(p.game, p.info)}. Forecast ${perDollar(p.v)} back per $1.`;
+    const worth = worthText(chart, p.info.value.per_dollar, p.info.value.per_dollar_all_prizes);
+    return `${name}, next draw ${dayText(p.info.draw_date)}: ${prizeLine(p.game, p.info)}. Forecast ${worth}.`;
   }
   const d = p.draw;
   const plays = `${playsText(d.est_plays)} plays sold`;
+  const worth = worthText(chart, d.value_per_dollar, d.value_per_dollar_all_prizes);
   if (p.game === "lottomax") {
     const won = d.tier_winners["7/7"] ? ", jackpot won" : "";
-    return `${name}, ${dayText(d.draw_date)}: ${money(d.jackpot)} jackpot${won}, ${plays}. Worth ${perDollar(p.v)} per $1.`;
+    return `${name}, ${dayText(d.draw_date)}: ${money(d.jackpot)} jackpot${won}, ${plays}. Worth ${worth}.`;
   }
   const ball = d.gold_ball_drawn === "gold" ? ", gold ball drawn" : "";
   const extra = d.super_draw ? ", Super Draw" : "";
-  return `${name}, ${dayText(d.draw_date)}: ${money(d.gold_ball_amount)} Gold Ball with ${d.balls_remaining} balls${ball}${extra}, ${plays}. Worth ${perDollar(p.v)} per $1.`;
+  return `${name}, ${dayText(d.draw_date)}: ${money(d.gold_ball_amount)} Gold Ball with ${d.balls_remaining} balls${ball}${extra}, ${plays}. Worth ${worth}.`;
 }
 
 // ---------- loading and events ----------
@@ -376,7 +393,7 @@ function render() {
   for (const button of document.querySelectorAll("#basis button")) {
     button.setAttribute("aria-pressed", String(button.dataset.basis === basis));
   }
-  renderChart(document.getElementById("chart"), draws, next);
+  for (const chart of CHARTS) renderChart(chart, draws, next);
 }
 
 async function fetchJson(path) {
