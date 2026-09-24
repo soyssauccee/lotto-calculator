@@ -269,13 +269,18 @@ function chartSeries(draws, next, chart) {
     points: draws
       .filter((d) => d.game === game && d.draw_date >= from && d[chart.draw] != null)
       .map((d) => ({ t: Date.parse(d.draw_date), v: d[chart.draw], draw: d })),
-    next: next[game] && next[game].value ? { t: Date.parse(next[game].draw_date), v: next[game].value[chart.next], info: next[game] } : null,
+    next: typeof next[game]?.value?.[chart.next] === "number"
+      ? { t: Date.parse(next[game].draw_date), v: next[game].value[chart.next], info: next[game] }
+      : null,
   }));
 }
 
 function renderChart(chart, draws, next) {
   const el = document.getElementById(chart.el);
-  const series = chartSeries(draws, next, chart);
+  if (!el) return; // a cached older index.html without this chart
+  const readout = document.getElementById(chart.readout);
+  readout.textContent = "Tap the chart for a draw's details.";
+  const series = draws.length ? chartSeries(draws, next, chart) : [];
   const all = series.flatMap((s) => s.points.concat(s.next ? [s.next] : []));
   if (!all.length) {
     el.innerHTML = `<p class="muted small">No history yet.</p>`;
@@ -346,7 +351,7 @@ function renderChart(chart, draws, next) {
     if (!best) return;
     focus.setAttribute("cx", x(best.t));
     focus.setAttribute("cy", y(best.v));
-    document.getElementById(chart.readout).innerHTML = esc(readoutText(best, chart));
+    readout.textContent = readoutText(best, chart);
   };
   svg.addEventListener("pointerdown", pick);
   svg.addEventListener("pointermove", (event) => {
@@ -393,7 +398,21 @@ function render() {
   for (const button of document.querySelectorAll("#basis button")) {
     button.setAttribute("aria-pressed", String(button.dataset.basis === basis));
   }
-  for (const chart of CHARTS) renderChart(chart, draws, next);
+}
+
+// Draws the page; the charts only when the data changed (they don't depend on the prize toggle).
+function show(withCharts) {
+  try {
+    render();
+    if (withCharts) for (const chart of CHARTS) renderChart(chart, state.draws, state.next);
+  } catch (error) {
+    console.error(error);
+    showProblem(`Something went wrong showing the numbers (${error.message}). Tap the Updated button to try again.`);
+  }
+}
+
+function showProblem(text) {
+  document.getElementById("notices").innerHTML = `<p class="notice error">${esc(text)}</p>`;
 }
 
 async function fetchJson(path) {
@@ -409,13 +428,14 @@ async function load() {
   try {
     const [next, draws] = await Promise.all([fetchJson("data/next.json"), fetchJson("data/draws.json")]);
     Object.assign(state, { next, draws: draws.draws, loadedAt: Date.now() });
-    render();
   } catch (error) {
-    document.getElementById("notices").innerHTML = `<p class="notice error">Couldn't load the data (${esc(error.message)}). Tap Retry, or try again in a few minutes.</p>`;
+    showProblem(`Couldn't load the data (${error.message}). Tap Retry, or try again in a few minutes.`);
     document.getElementById("refresh").textContent = "Retry";
+    return;
   } finally {
     state.loading = false;
   }
+  show(true);
 }
 
 document.getElementById("basis").addEventListener("click", (event) => {
@@ -423,7 +443,7 @@ document.getElementById("basis").addEventListener("click", (event) => {
   if (!button || !state.next) return;
   state.basis = button.dataset.basis;
   saveBasis(state.basis);
-  render();
+  show(false);
 });
 document.getElementById("refresh").addEventListener("click", load);
 document.addEventListener("visibilitychange", () => {

@@ -21,7 +21,7 @@ PART_NAMES = {
     "jackpot": "Main jackpot",
     "maxplus": "MAXPLUS prizes",
     "maxmillions": "MAXMILLIONS prizes",
-    "lower_tiers": "Lower categories",
+    "lower_tiers": "Smaller prizes",
 }
 
 

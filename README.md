@@ -122,7 +122,7 @@ times the share you keep if others win it too.
   probability 1/balls, otherwise $1M, never shared. The Classic $5M is shared like above.
   Value = [(J/balls + $1M × (1 − 1/balls)) ÷ N + s × $5M ÷ C(49,6)] ÷ $3.
   Example: $40M with 15 balls and 4.5M plays gives $0.369.
-- **Lower categories** (the `--all-prizes` toggle) add about $0.18 (6/49) and $0.20 (Lotto Max)
+- **Smaller prizes** (the lower categories; the `--all-prizes` toggle) add about $0.18 (6/49) and $0.20 (Lotto Max)
   per $1: fixed prizes at their odds, free plays at the game conditions' deemed value, and each
   pool's expected share.
 
