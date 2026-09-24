@@ -1,5 +1,5 @@
 {
-  "scraped_at": "2026-09-24T06:16:56Z",
+  "scraped_at": "2026-09-24T06:36:48Z",
   "lotto649": {
     "draw_number": 4454,
     "draw_date": "2026-09-26",
@@ -40,7 +40,7 @@
       },
       "price": 3
     },
-    "as_of": "2026-09-24T06:16:56Z"
+    "as_of": "2026-09-24T06:36:48Z"
   },
   "lottomax": {
     "draw_number": 1273,
@@ -82,9 +82,11 @@
       },
       "price": 6
     },
-    "as_of": "2026-09-24T06:16:56Z"
+    "as_of": "2026-09-24T06:36:48Z"
   },
   "recommendation": {
+    "play": true,
+    "min_per_dollar": 0.3,
     "top_prizes": {
       "game": "lottomax",
       "per_dollar": 0.3316,
