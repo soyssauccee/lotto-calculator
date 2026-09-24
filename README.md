@@ -16,8 +16,8 @@ Screen makes it an app).
 | M3 | Sales estimator (exact, from the Pools Fund) | done |
 | M4 | Sales forecast model | done |
 | M5 | Value engine | done |
-| M6 | Phone web page | next |
-| M7 | Scheduled runs and alerts | |
+| M6 | Phone web page | done |
+| M7 | Scheduled runs and alerts | next |
 
 ## Setup
 
