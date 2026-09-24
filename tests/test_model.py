@@ -86,6 +86,25 @@ def test_gold_prize_off_the_ladder_is_reported():
     assert "not on the Gold Ball ladder" in model.derive_gold_ball(draws)[0]
 
 
+def history(*draws):
+    return [{"draw_number": n, "draw_date": d} for n, d in draws]
+
+
+def test_complete_history_has_no_warnings():
+    draws = history((4033, "2022-09-14"), (4034, "2022-09-17"), (4035, "2022-09-21"))
+    assert model.check_history(model.LOTTO_649, draws) == []
+
+
+def test_history_gaps_late_start_and_off_schedule_draws_are_reported():
+    draws = history((4034, "2022-09-17"), (4036, "2022-09-24"), (4037, "2022-09-29"))
+    warnings = model.check_history(model.LOTTO_649, draws)
+    assert warnings == [
+        "Lotto 6/49: history starts at draw 4034, not 4033",
+        "Lotto 6/49: draws 4035..4035 missing",
+        "Lotto 6/49: draw 4037 on 2022-09-29 is not the next scheduled draw after 2022-09-24",
+    ]
+
+
 def test_check_draw_catches_parser_drift(page):
     draw = wclc.parse_prize_details(page("wclc_649_4452.html"), model.LOTTO_649, 4452)
     tiers = {k: v for k, v in draw["tier_winners"].items() if k != "3/6"}

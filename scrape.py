@@ -1,6 +1,7 @@
 """Refresh data/next.json and data/draws.json from the lottery sites.
 
     python scrape.py             fetch next-draw info and any draws not stored yet
+    python scrape.py --backfill  also fetch every draw back to the current format's first
     python scrape.py --dry-run   fetch and report, but write nothing
 
 Exits with status 1 when data could not be fetched or parsed. The files then
@@ -22,6 +23,8 @@ DATA_DIR = Path(__file__).resolve().parent / "data"
 EASTERN = ZoneInfo("America/Toronto")
 FIRST_RUN_DRAWS = 8  # with no history stored yet, take the draws on the listing page
 MAX_CATCH_UP = 30  # a longer gap is a job for the backfill
+CHECKPOINT_EVERY = 25  # during a long catch-up, save after this many new draws
+BACKFILL_DELAY = 2.0  # seconds between requests during a backfill
 
 
 @dataclass
@@ -31,8 +34,12 @@ class Report:
     added: list = field(default_factory=list)  # (game, draw_number, draw_date)
 
 
-def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS):
-    """Fetch new data and merge it into draws, in place. Returns (next_doc, report)."""
+def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, backfill=False, checkpoint=None):
+    """Fetch new data and merge it into draws, in place. Returns (next_doc, report).
+
+    With backfill, every draw of the current format is fetched, however many are
+    missing. checkpoint(draws) is called every CHECKPOINT_EVERY new draws.
+    """
     report = Report()
     stamp = now.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -69,12 +76,13 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS):
         report.warnings.append(sidebar_problem)
 
     for game, listing in listings.items():
-        _catch_up(session, game, listing, draws, stamp, report, first_run_draws)
+        _catch_up(session, game, listing, draws, stamp, report, first_run_draws, backfill, checkpoint)
 
     next_doc = {"scraped_at": stamp}
     today = now.astimezone(EASTERN).date()
     for game in model.GAMES:
         records = sorted((d for d in draws if d["game"] == game), key=lambda d: d["draw_number"])
+        report.warnings += model.check_history(game, records)
         info = upcoming.get(game)
         if info is None:
             previous = (previous_next or {}).get(game)
@@ -99,16 +107,17 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS):
     return next_doc, report
 
 
-def _catch_up(session, game, listing, draws, stamp, report, first_run_draws):
+def _catch_up(session, game, listing, draws, stamp, report, first_run_draws, backfill, checkpoint):
     """Fetch every draw up to the newest listed one that isn't stored, filling gaps too."""
     name = model.GAME_NAMES[game]
     have = {d["draw_number"] for d in draws if d["game"] == game}
     latest = max(item["draw_number"] for item in listing)
-    if have:
-        wanted = [n for n in range(min(have), latest + 1) if n not in have]
+    if backfill or have:
+        start = model.FORMAT_FIRST_DRAW[game] if backfill else min(have)
+        wanted = [n for n in range(start, latest + 1) if n not in have]
     else:
         wanted = sorted(item["draw_number"] for item in listing)[-first_run_draws:]
-    if len(wanted) > MAX_CATCH_UP:
+    if len(wanted) > MAX_CATCH_UP and not backfill:
         report.warnings.append(
             f"{name}: {len(wanted)} draws missing; fetching the newest {MAX_CATCH_UP}, backfill the rest"
         )
@@ -127,6 +136,9 @@ def _catch_up(session, game, listing, draws, stamp, report, first_run_draws):
         record.update(source="wclc", scraped_at=stamp)
         store.merge_draw(draws, record)
         report.added.append((game, number, record["draw_date"]))
+        if checkpoint and len(report.added) % CHECKPOINT_EVERY == 0:
+            checkpoint(draws)
+            print(f"  {name}: saved through draw {number} ({len(report.added)} new so far)", flush=True)
 
 
 def _next_draw_number(game, info, records, report):
@@ -179,6 +191,7 @@ def summarize(next_doc, report, requests_made):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Refresh next.json and draws.json from the lottery sites.")
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR, help="folder with draws.json and next.json")
+    parser.add_argument("--backfill", action="store_true", help="fetch every draw of the current format")
     parser.add_argument("--dry-run", action="store_true", help="fetch and report, but write nothing")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
@@ -186,8 +199,16 @@ def main(argv=None):
 
     draws_path, next_path = args.data_dir / "draws.json", args.data_dir / "next.json"
     draws = store.load_draws(draws_path)
-    session = PoliteSession()
-    next_doc, report = update(session, draws, store.load_json(next_path), datetime.now(timezone.utc))
+    session = PoliteSession(delay=BACKFILL_DELAY) if args.backfill else PoliteSession()
+
+    def checkpoint(partial):
+        if not args.dry_run:
+            store.write_if_changed(draws_path, store.dumps_draws(partial))
+
+    next_doc, report = update(
+        session, draws, store.load_json(next_path), datetime.now(timezone.utc),
+        backfill=args.backfill, checkpoint=checkpoint,
+    )
     print(summarize(next_doc, report, session.requests_made))
     if not args.dry_run:
         store.write_if_changed(draws_path, store.dumps_draws(draws))

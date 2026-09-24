@@ -57,7 +57,11 @@ def test_first_run_stores_the_latest_draws_and_the_next_draw():
     draws = []
     next_doc, report = scrape.update(session, draws, None, NOW, first_run_draws=3)
 
-    assert (report.errors, report.warnings) == ([], [])
+    assert report.errors == []
+    assert report.warnings == [
+        "Lotto 6/49: history starts at draw 4450, not 4033",
+        "Lotto Max: history starts at draw 1270, not 1226",
+    ]
     assert numbers(draws, model.LOTTO_649) == [4450, 4451, 4452]
     assert numbers(draws, model.LOTTO_MAX) == [1270, 1271, 1272]
     assert session.requests_made == 2 + 6  # two listing pages, then one breakdown per draw
@@ -86,7 +90,25 @@ def test_first_run_stores_the_latest_draws_and_the_next_draw():
         "source": "wclc",
         "as_of": STAMP,
     }
-    assert (next_doc["errors"], next_doc["warnings"]) == ([], [])
+    assert (next_doc["errors"], next_doc["warnings"]) == (report.errors, report.warnings)
+
+
+def test_backfill_fetches_everything_from_the_format_start(monkeypatch):
+    monkeypatch.setitem(model.FORMAT_FIRST_DRAW, model.LOTTO_649, 4446)
+    monkeypatch.setitem(model.FORMAT_FIRST_DRAW, model.LOTTO_MAX, 1270)
+    monkeypatch.setattr(scrape, "MAX_CATCH_UP", 2)  # a backfill ignores the catch-up cap
+    monkeypatch.setattr(scrape, "CHECKPOINT_EVERY", 4)
+    saved = []
+    draws = [stored(model.LOTTO_649, 4452)]
+    _, report = scrape.update(
+        FakeSession(LISTINGS | DETAILS), draws, None, NOW, backfill=True, checkpoint=lambda d: saved.append(len(d)),
+    )
+
+    assert (report.errors, report.warnings) == ([], [])
+    assert numbers(draws, model.LOTTO_649) == list(range(4446, 4453))
+    assert numbers(draws, model.LOTTO_MAX) == [1270, 1271, 1272]
+    assert saved == [5, 9]  # after the 4th and 8th new draw
+    assert next(d for d in draws if d["draw_number"] == 4446)["balls_remaining"] == 25
 
 
 def test_later_run_fetches_only_missing_draws_and_fills_gaps():

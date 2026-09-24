@@ -9,8 +9,8 @@ based on real jackpots, real sales and real odds.
 |---|---|---|
 | M0 | Data source audit | done |
 | M1 | Scraper and data model | done |
-| M2 | Backfill history (6/49 from #4033, Lotto Max 7/52 from #1226) | next |
-| M3 | Sales estimator (exact, from the Pools Fund) | |
+| M2 | Backfill history (6/49 from #4033, Lotto Max 7/52 from #1226) | done |
+| M3 | Sales estimator (exact, from the Pools Fund) | next |
 | M4 | Sales forecast model | |
 | M5 | Value engine | |
 | M6 | Phone web page | |
@@ -27,6 +27,7 @@ py -3.13 -m venv .venv
 
 ```
 .venv\Scripts\python scrape.py             # fetch next-draw info and any new draws
+.venv\Scripts\python scrape.py --backfill  # also fetch every draw of the current formats (~15 min)
 .venv\Scripts\python scrape.py --dry-run   # fetch and report, write nothing
 .venv\Scripts\python -m pytest             # offline tests against saved pages
 ```

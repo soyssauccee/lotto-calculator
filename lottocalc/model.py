@@ -1,6 +1,6 @@
 """Game rules shared by every source, and the checks that catch parser drift."""
 import re
-from datetime import timedelta
+from datetime import date, timedelta
 
 LOTTO_649 = "lotto649"
 LOTTO_MAX = "lottomax"
@@ -31,6 +31,9 @@ LOTTO_MAX_JACKPOT_RANGE = (10_000_000, 90_000_000)
 MAXMILLIONS_FROM = 50_000_000  # MAXMILLIONS prizes are offered at or above this jackpot
 MAXPLUS_TRANCHE = 1_000_000  # at least one MAXPLUS prize per $1M of jackpot
 LOTTO_MAX_752_FIRST_DRAW = 1226  # 2026-04-14, first 7/52 $6 draw
+
+# First draw of each game's current format; older draws have other odds and prices.
+FORMAT_FIRST_DRAW = {LOTTO_649: GOLD_BALL_FIRST_DRAW, LOTTO_MAX: LOTTO_MAX_752_FIRST_DRAW}
 
 _TIER_LABEL = re.compile(r"^(\d)\s*of\s*(\d)\s*(\+\s*bonus)?$", re.IGNORECASE)
 
@@ -116,6 +119,25 @@ def derive_gold_ball(draws, next_draw=None):
             f"Lotto 6/49: Gold Ball jackpot unknown for {len(unresolved)} draw(s) "
             f"not linked to an anchor ({unresolved[0]}..{unresolved[-1]})"
         )
+    return warnings
+
+
+def check_history(game, draws):
+    """Warnings for missing draw numbers and draws off the Tue/Fri or Wed/Sat schedule.
+
+    `draws` is the game's records sorted by draw_number.
+    """
+    name, warnings = GAME_NAMES[game], []
+    if draws and draws[0]["draw_number"] > FORMAT_FIRST_DRAW[game]:
+        warnings.append(f"{name}: history starts at draw {draws[0]['draw_number']}, not {FORMAT_FIRST_DRAW[game]}")
+    for before, after in zip(draws, draws[1:]):
+        first, second = before["draw_number"], after["draw_number"]
+        if second != first + 1:
+            warnings.append(f"{name}: draws {first + 1}..{second - 1} missing")
+            continue
+        start, end = date.fromisoformat(before["draw_date"]), date.fromisoformat(after["draw_date"])
+        if draws_between(game, start, end) != [end]:
+            warnings.append(f"{name}: draw {second} on {end} is not the next scheduled draw after {start}")
     return warnings
 
 
