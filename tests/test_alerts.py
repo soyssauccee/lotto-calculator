@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 import alert
 from lottocalc import alerts, model
 
@@ -93,6 +95,16 @@ class FakeGitHub:
         self.open_issues = {k: v for k, v in self.open_issues.items() if v != number}
         self.calls.append(("close", number))
 
+    def issue_url(self, number):
+        return f"https://github.com/soyssauccee/lotto-calculator/issues/{number}"
+
+
+@pytest.fixture
+def pushed(monkeypatch):
+    sent = []
+    monkeypatch.setattr(alert, "push_ntfy", lambda topic, message, url, **options: sent.append((topic, message, url, options)))
+    return sent
+
 
 OPTIONS = dict(owner="soyssauccee", run_url="https://github.com/run/1", page_url="https://soyssauccee.github.io/lotto-calculator/",
                now=datetime(2026, 9, 25, 4, 17, tzinfo=timezone.utc))
@@ -125,14 +137,24 @@ def test_value_alert_goes_to_an_issue_without_ntfy():
     assert github.calls[1][2].startswith("@soyssauccee Lotto 6/49 is now the better buy")
 
 
-def test_value_alert_is_pushed_when_ntfy_is_set_up(monkeypatch):
-    pushed = []
-    monkeypatch.setattr(alert, "push_ntfy", lambda topic, message, url: pushed.append((topic, message, url)))
+def test_value_alert_is_pushed_when_ntfy_is_set_up(pushed):
     github = FakeGitHub()
     flipped = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.05, g649_value=0.24, max_draw=1274)
     assert alert.handle(github, CLEAN_NOW, flipped, ntfy_topic="secret-topic", **OPTIONS) == ["pushed a value alert"]
     assert pushed[0][0] == "secret-topic" and pushed[0][2] == OPTIONS["page_url"]
     assert github.calls == []
+
+
+def test_problem_and_recovery_are_pushed_when_ntfy_is_set_up(pushed):
+    github = FakeGitHub()
+    first, second = doc("2026-09-24T21:17:00Z", errors=BROKEN), doc("2026-09-25T04:17:00Z", errors=BROKEN)
+    assert alert.handle(github, first, second, ntfy_topic="secret-topic", **OPTIONS) == ["opened issue #11", "pushed the problem"]
+    topic, message, url, options = pushed[0]
+    assert message == f"{BROKEN[0]} Details in issue #11." and url.endswith("/issues/11")
+    assert options["priority"] == "high"
+    later = doc("2026-09-25T11:17:00Z")
+    assert alert.handle(github, second, later, ntfy_topic="secret-topic", **OPTIONS) == ["closed issue #11", "pushed the recovery"]
+    assert pushed[1][3]["priority"] == "low"
 
 
 def test_github_client_sends_authorised_requests():

@@ -168,7 +168,8 @@ Afterwards, `alert.py` sends two kinds of alerts:
 - **Value alerts.** When the better buy flips between games, or when a draw is worth at least
   `VALUE_ALERT_THRESHOLD` per $1 (a repository variable, $0.50 by default). Each draw alerts at
   most once. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
-  they are posted as comments on a `value-alert` issue.
+  they are posted as comments on a `value-alert` issue. With ntfy set up, opening and closing a
+  `data-problem` issue is pushed to the phone too.
 
 The workflow commits to `main` several times a day, so run `git pull --rebase` before pushing
 local changes.

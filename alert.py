@@ -6,7 +6,8 @@ Run by .github/workflows/scrape.yml after scrape.py, with the next.json the run
 started from. Data problems open a GitHub issue (which emails the repository
 owner) and the issue is closed when a run comes back clean. Value alerts are
 pushed to the ntfy.sh topic in NTFY_TOPIC when that secret is set, and are
-otherwise posted as comments on a "Value alerts" issue.
+otherwise posted as comments on a "Value alerts" issue. With NTFY_TOPIC set,
+opening and closing the problem issue is pushed to the phone as well.
 
 Needs GITHUB_TOKEN and GITHUB_REPOSITORY; VALUE_ALERT_THRESHOLD is optional.
 """
@@ -29,6 +30,7 @@ class GitHub:
     """The few issue calls the alerts need."""
 
     def __init__(self, repository, token, session=None):
+        self.repository = repository
         self.base = f"https://api.github.com/repos/{repository}"
         self.session = session or requests.Session()
         self.session.headers.update({
@@ -55,12 +57,15 @@ class GitHub:
     def close(self, number):
         self._call("PATCH", f"/issues/{number}", json={"state": "closed", "state_reason": "completed"})
 
+    def issue_url(self, number):
+        return f"https://github.com/{self.repository}/issues/{number}"
 
-def push_ntfy(topic, message, click_url, session=requests):
+
+def push_ntfy(topic, message, click_url, title="Lotto Calculator", tags="moneybag", priority="default", session=requests):
     response = session.post(
         f"https://ntfy.sh/{topic}",
         data=message.encode("utf-8"),
-        headers={"Title": "Lotto Calculator", "Tags": "moneybag", "Click": click_url},
+        headers={"Title": title, "Tags": tags, "Priority": priority, "Click": click_url},
         timeout=30,
     )
     response.raise_for_status()
@@ -84,10 +89,18 @@ def handle(github, previous, current, *, owner, run_url, page_url, log_tail="", 
         ] + (["", "Log:", "```", log_tail, "```"] if log_tail else []))
         number = github.create_issue("Lottery data isn't updating", body, PROBLEM_LABEL)
         done.append(f"opened issue #{number}")
+        if ntfy_topic:
+            push_ntfy(ntfy_topic, f"{found[0]} Details in issue #{number}.", github.issue_url(number),
+                      title="Lottery data isn't updating", tags="warning", priority="high")
+            done.append("pushed the problem")
     elif not found and open_number is not None:
         github.comment(open_number, f"Back to normal as of {stamp}: {run_url}")
         github.close(open_number)
         done.append(f"closed issue #{open_number}")
+        if ntfy_topic:
+            push_ntfy(ntfy_topic, "The lottery data is updating again.", page_url,
+                      title="Back to normal", tags="white_check_mark", priority="low")
+            done.append("pushed the recovery")
     elif found:
         done.append("problem noted; alerting only if the next run also has it" if open_number is None
                     else f"problem continues; issue #{open_number} is already open")
