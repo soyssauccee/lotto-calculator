@@ -55,9 +55,11 @@ then keep their last good values and `next.json` lists the errors.
 | `value` | expected payout per $1 in big prizes (`per_dollar`, with a range from the sales forecast), with all prizes (`per_dollar_all_prizes`), the parts, and the odds per play |
 | `source`, `as_of` | where and when it was read; `stale: true` if every source failed |
 
-Top-level `recommendation` names the better buy on big prizes (`top_prizes`) and on all prizes
-(`all_prizes`), with the `margin` per $1 and `close_call: true` when the runner-up could come out
-ahead within the forecast ranges. Top-level `errors` and `warnings` list what went wrong in the last run.
+Top-level `recommendation` says whether either game is worth playing (`play`, which is false when
+both are under `min_per_dollar`, $0.30 in big prizes). It also names the better buy on big prizes
+(`top_prizes`) and on all prizes (`all_prizes`), with the `margin` per $1 and `close_call: true`
+when the runner-up could come out ahead within the forecast ranges. Top-level `errors` and
+`warnings` list what went wrong in the last run.
 
 **`data/draws.json`**: every stored draw, one per line, sorted by game and draw number.
 Records hold the winning numbers, `tier_winners` and `tier_prizes` per prize category
@@ -123,6 +125,10 @@ times the share you keep if others win it too.
   per $1: fixed prizes at their odds, free plays at the game conditions' deemed value, and each
   pool's expected share.
 
+**Minimum to play.** When both games are under $0.30 back per $1 in big prizes
+(`MIN_WORTH_PLAYING` in `lottocalc/value.py`), neither is recommended and the page says "Skip
+for now". The minimum is judged on big prizes, because all-prize values run about $0.20 higher.
+
 Checked against history: the model expects 27.1 Gold Ball jackpots, 124 Classic wins and 151
 MAXPLUS wins, and history shows 24, 126 and 165. All three are within 1.2 standard deviations.
 
@@ -165,9 +171,10 @@ Afterwards, `alert.py` sends two kinds of alerts:
   `data-problem` issue straight away; other problems do once they last two runs in a row, so
   one network blip doesn't send anything. GitHub emails the issue to the owner, and the issue
   closes itself when a run comes back clean.
-- **Value alerts.** When the better buy flips between games, or when a draw is worth at least
+- **Value alerts.** When the verdict changes (a game becomes worth playing, the pick switches
+  games, or both fall under the $0.30 minimum), and when a draw is worth at least
   `VALUE_ALERT_THRESHOLD` per $1 (a repository variable, $0.50 by default). Each draw alerts at
-  most once. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
+  most once for the threshold. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
   they are posted as comments on a `value-alert` issue. With ntfy set up, opening and closing a
   `data-problem` issue is pushed to the phone too.
 

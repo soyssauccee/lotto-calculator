@@ -3,6 +3,8 @@
     python recommend.py                 compare on the big prizes (jackpots, Gold Ball, MAXPLUS, MAXMILLIONS)
     python recommend.py --all-prizes    include the lower prize categories too
 
+Neither game is recommended when both are under $0.30 back per $1 in big prizes.
+
 Reads data/next.json as written by the last `python scrape.py`.
 """
 import argparse
@@ -66,10 +68,18 @@ def main(argv=None):
     upcoming = store.load_json(args.data_dir / "next.json", default={})
     for game in model.GAMES:
         print(describe(game, upcoming.get(game)))
-    verdict = (upcoming.get("recommendation") or {}).get("all_prizes" if args.all_prizes else "top_prizes")
+    recommendation = upcoming.get("recommendation") or {}
+    verdict = recommendation.get("all_prizes" if args.all_prizes else "top_prizes")
     if not verdict:
         print("\nNo recommendation: one of the games has no value yet.")
         return 1
+    if not recommendation.get("play", True):
+        top = recommendation["top_prizes"]
+        print(
+            f"\nSkip for now: neither game reaches ${recommendation['min_per_dollar']:.2f} back per $1 in big prizes. "
+            f"The better one, {model.GAME_NAMES[top['game']]}, is at ${top['per_dollar']:.3f}."
+        )
+        return 0
     basis = "all prizes" if args.all_prizes else "big prizes"
     print(
         f"\nPlay {model.GAME_NAMES[verdict['game']]}: ${verdict['per_dollar']:.3f} vs ${verdict['runner_up_per_dollar']:.3f} "

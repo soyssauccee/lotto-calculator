@@ -27,6 +27,7 @@ import math
 from . import model, sales
 
 PRICE = sales.PRICE
+MIN_WORTH_PLAYING = 0.30  # big-prize value per $1 below which neither game is recommended
 LOTTO_MAX_SERIES_ODDS = sales.LINES_PER_PLAY[model.LOTTO_MAX] / math.comb(52, 7)  # per play
 CLASSIC_ODDS = sales.tier_probability(model.LOTTO_649, "6/6")
 MAXMILLIONS_PRIZE = 1_000_000
@@ -128,14 +129,19 @@ def next_draw_value(game, info):
 
 
 def recommend(values):
-    """The better buy by top-prize value and by all-prize value.
+    """Whether either game is worth playing, and the better buy by top-prize and by all-prize value.
 
-    `values` maps each game to its next_draw_value. A close call means the
-    runner-up could come out ahead within the sales forecasts' 80% ranges.
+    `values` maps each game to its next_draw_value. `play` is false when neither
+    game reaches MIN_WORTH_PLAYING per $1 in big prizes; the all-prize values run
+    about $0.20 higher, so they don't decide it. A close call means the runner-up
+    could come out ahead within the sales forecasts' 80% ranges.
     """
     if any(values.get(game) is None for game in model.GAMES):
         return None
-    result = {}
+    result = {
+        "play": max(values[game]["per_dollar"] for game in model.GAMES) >= MIN_WORTH_PLAYING,
+        "min_per_dollar": MIN_WORTH_PLAYING,
+    }
     for basis, key in (("top_prizes", "per_dollar"), ("all_prizes", "per_dollar_all_prizes")):
         best, other = sorted(model.GAMES, key=lambda g: values[g][key], reverse=True)
         result[basis] = {

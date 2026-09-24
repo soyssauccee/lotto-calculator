@@ -115,6 +115,25 @@ def test_recommendation_picks_the_better_value_with_its_margin():
     assert result["all_prizes"]["game"] == model.LOTTO_MAX
 
 
+@pytest.mark.parametrize(
+    "max_value, value_649, play",
+    [(0.332, 0.218, True), (0.30, 0.22, True), (0.25, 0.20, False), (0.12, 0.2999, False)],
+)
+def test_recommending_play_needs_the_minimum_in_big_prizes(max_value, value_649, play):
+    result = value.recommend(values(max_value, [max_value, max_value], value_649, [value_649, value_649]))
+    assert result["play"] is play
+    assert result["min_per_dollar"] == value.MIN_WORTH_PLAYING == 0.30
+    # the better game is still named, so the page can say which one came closest
+    assert result["top_prizes"]["game"] == (model.LOTTO_MAX if max_value > value_649 else model.LOTTO_649)
+
+
+def test_all_prize_values_dont_decide_whether_to_play():
+    # $0.25 in big prizes is a skip even though counting every prize it's $0.45
+    result = value.recommend(values(0.25, [0.25, 0.25], 0.20, [0.20, 0.20]))
+    assert result["all_prizes"]["per_dollar"] == pytest.approx(0.45)
+    assert result["play"] is False
+
+
 def test_overlapping_ranges_are_a_close_call():
     result = value.recommend(values(0.30, [0.29, 0.31], 0.305, [0.28, 0.33]))
     assert result["top_prizes"]["game"] == model.LOTTO_649

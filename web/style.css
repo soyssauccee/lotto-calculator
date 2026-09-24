@@ -100,6 +100,7 @@ h2 { font-size: 1.05rem; }
 .verdict { text-align: center; padding: 20px 16px; }
 .verdict.accent-max { box-shadow: inset 0 4px 0 var(--max); }
 .verdict.accent-g649 { box-shadow: inset 0 4px 0 var(--g649); }
+.verdict.accent-skip { box-shadow: inset 0 4px 0 var(--muted); }
 .eyebrow {
   color: var(--muted);
   font-size: 0.8rem;
@@ -203,6 +204,9 @@ h2 { font-size: 1.05rem; }
 .chart polyline.line { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
 .chart circle.next { fill: var(--card); stroke-width: 1.8; }
 .chart circle.focus { fill: none; stroke: var(--text); stroke-width: 1.2; }
+.chart .minline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.chart-legend .minkey { color: var(--muted); }
+.chart-legend .minkey::before { height: 0; background: none; border-top: 2px dashed currentColor; }
 .chart-legend { display: flex; gap: 16px; font-size: 0.85rem; margin-top: 6px; }
 .chart-legend span::before {
   content: "";

@@ -189,11 +189,17 @@ def summarize(next_doc, report, requests_made):
             f"Lotto Max   next {info['draw_date']} (#{info['draw_number']}): jackpot {dollars(info['jackpot'])}, "
             f"{info['maxmillions_count']} MAXMILLIONS, {info['maxplus_count']} MAXPLUS{sales_forecast(info)}  {origin(info)}"
         )
-    best = (next_doc.get("recommendation") or {}).get("top_prizes")
-    if best:
+    recommendation = next_doc.get("recommendation") or {}
+    best = recommendation.get("top_prizes")
+    if best and recommendation.get("play", True):
         lines.append(
             f"Best buy: {model.GAME_NAMES[best['game']]}, ${best['per_dollar']:.2f} vs ${best['runner_up_per_dollar']:.2f} "
             f"back per $1 in top prizes{' (close call)' if best['close_call'] else ''}"
+        )
+    elif best:
+        lines.append(
+            f"Skip for now: the better game, {model.GAME_NAMES[best['game']]}, is worth ${best['per_dollar']:.2f} "
+            f"back per $1 in top prizes, under the ${recommendation['min_per_dollar']:.2f} minimum"
         )
     for game in model.GAMES:
         added = sorted(n for g, n, _ in report.added if g == game)

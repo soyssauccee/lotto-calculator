@@ -2,7 +2,7 @@
 
 Everything here compares the next.json a run started with to the one it wrote.
 """
-from . import model
+from . import model, value
 
 # Warnings that mean a source is degrading even though the data is still current.
 DEGRADED_MARKERS = ("backup source", "unreadable")
@@ -33,20 +33,46 @@ def should_report(previous, current):
     return bool(found) and (found == [CRASHED] or bool(problems(previous)))
 
 
+def verdict(doc):
+    """The game a next.json recommends, "skip" if neither is worth playing, or None without a recommendation."""
+    recommendation = (doc or {}).get("recommendation") or {}
+    top = recommendation.get("top_prizes")
+    if not top:
+        return None
+    # next.json files written before the minimum existed lack "play"
+    play = recommendation.get("play", top["per_dollar"] >= value.MIN_WORTH_PLAYING)
+    return top["game"] if play else "skip"
+
+
 def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
-    """Messages for a change of better buy, and for a draw worth `threshold` or more per $1."""
+    """Messages for a change of verdict (play one game, the other, or skip), and for a draw worth
+    `threshold` or more per $1."""
     if not current:
         return []
     previous = previous or {}
     alerts = []
-    now = (current.get("recommendation") or {}).get("top_prizes")
-    before = (previous.get("recommendation") or {}).get("top_prizes")
-    if now and before and now["game"] != before["game"]:
-        info = current[now["game"]]
-        alerts.append(
-            f"{model.GAME_NAMES[now['game']]} is now the better buy: ${now['per_dollar']:.2f} vs "
-            f"${now['runner_up_per_dollar']:.2f} back per $1 for the {info['draw_date']} draw ({_prizes(now['game'], info)})."
-        )
+    now, before = verdict(current), verdict(previous)
+    if now and before and now != before:
+        recommendation = current["recommendation"]
+        top = recommendation["top_prizes"]
+        best, other = top["game"], model.LOTTO_649 if top["game"] == model.LOTTO_MAX else model.LOTTO_MAX
+        info = current[best]
+        if now == "skip":
+            alerts.append(
+                f"Neither game is worth playing now: the better one, {model.GAME_NAMES[best]}, is at "
+                f"${top['per_dollar']:.2f} back per $1, under your ${recommendation['min_per_dollar']:.2f} minimum."
+            )
+        elif before == "skip":
+            alerts.append(
+                f"{model.GAME_NAMES[best]} is worth playing: ${top['per_dollar']:.2f} back per $1 for the "
+                f"{info['draw_date']} draw ({_prizes(best, info)}). {model.GAME_NAMES[other]} is at "
+                f"${top['runner_up_per_dollar']:.2f}."
+            )
+        else:
+            alerts.append(
+                f"{model.GAME_NAMES[best]} is now the better buy: ${top['per_dollar']:.2f} vs "
+                f"${top['runner_up_per_dollar']:.2f} back per $1 for the {info['draw_date']} draw ({_prizes(best, info)})."
+            )
     for game in model.GAMES:
         info = current.get(game) or {}
         worth = (info.get("value") or {}).get("per_dollar")

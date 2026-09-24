@@ -20,6 +20,7 @@ const CHART_WEEKS = 26;
 const CHART_FROM = "2026-04-14"; // Lotto Max's current format started then
 const REFRESH_AFTER_MS = 5 * 60 * 1000;
 const BASIS_KEY = "lotto-calculator.basis";
+const DEFAULT_MINIMUM = 0.3; // matches MIN_WORTH_PLAYING in lottocalc/value.py
 
 const state = { next: null, draws: [], basis: readBasis(), loadedAt: 0, loading: false };
 
@@ -118,11 +119,39 @@ function noticesHtml(next) {
   return notes.map(([level, text]) => `<p class="notice ${level}">${esc(text)}</p>`).join("");
 }
 
+function minimumToPlay(next) {
+  return (next.recommendation && next.recommendation.min_per_dollar) || DEFAULT_MINIMUM;
+}
+
+function worthPlaying(next) {
+  const recommendation = next.recommendation;
+  if (!recommendation) return false;
+  // next.json files written before the minimum existed lack "play"
+  return recommendation.play ?? recommendation.top_prizes.per_dollar >= minimumToPlay(next);
+}
+
+function skipHtml(next) {
+  const top = next.recommendation.top_prizes; // the minimum is judged on big prizes
+  const best = top.game;
+  const minimum = minimumToPlay(next);
+  return `
+    <p class="eyebrow">Next draws</p>
+    <h1>Skip for now</h1>
+    <p class="when">Neither game reaches your ${perDollar(minimum)} minimum back per $1 in big prizes</p>
+    <div class="compare">
+      <div><span class="big">${perDollar(top.per_dollar)}</span><span class="label">${GAMES[best].name}</span></div>
+      <div class="vs">vs</div>
+      <div><span class="big">${perDollar(top.runner_up_per_dollar)}</span><span class="label">${GAMES[otherGame(best)].name}</span></div>
+    </div>
+    <p class="margin">The better one, ${GAMES[best].name}, is ${perDollar(minimum - top.per_dollar)} short.</p>`;
+}
+
 function verdictHtml(next, basis) {
   const rec = next.recommendation && next.recommendation[basis];
   if (!rec) {
     return `<p class="eyebrow">Better buy for the next draw</p><p class="loading">Not enough data to compare the games yet.</p>`;
   }
+  if (!worthPlaying(next)) return skipHtml(next);
   const best = rec.game;
   const other = otherGame(best);
   const counted = basis === "all_prizes" ? "all prizes" : "big prizes";
@@ -185,7 +214,9 @@ function gameHtml(game, info, basis) {
   const legend = parts
     .map(([key, v], i) => `<li><i style="background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></i>${PARTS[key] ?? key} ${perDollar(v)}</li>`)
     .join("");
-  const rangeText = high - low >= 0.005 ? `${perDollar(low)}–${perDollar(high)} across the sales forecast` : "barely moves with sales";
+  const rangeText = perDollar(low) !== perDollar(high)
+    ? `${perDollar(low)}–${perDollar(high)} across the sales forecast`
+    : "barely moves with sales";
 
   const plays6 = 6 / value.price;
   const odds = value.odds_one_in;
@@ -241,7 +272,8 @@ function renderChart(el, draws, next) {
   const t0 = Math.min(...all.map((p) => p.t));
   const t1 = Math.max(...all.map((p) => p.t));
   const step = 0.1;
-  const vMax = Math.max(step * 2, Math.ceil((Math.max(...all.map((p) => p.v)) * 1.05) / step) * step);
+  const minimum = minimumToPlay(next);
+  const vMax = Math.max(step * 2, Math.ceil((Math.max(minimum, ...all.map((p) => p.v)) * 1.05) / step) * step);
   const x = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);
   const y = (v) => T + (1 - v / vMax) * (H - T - B);
 
@@ -272,12 +304,14 @@ function renderChart(el, draws, next) {
     })
     .join("");
 
+  const minimumLine = `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
+
   el.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Value per dollar of each game's recent draws">
-      ${grid.join("")}${months.join("")}${shapes}
+      ${grid.join("")}${months.join("")}${minimumLine}${shapes}
       <circle id="focus" class="focus" r="6" cx="-20" cy="-20"/>
     </svg>
-    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="${GAMES[g].css}">${GAMES[g].name}</span>`).join("")}</div>`;
+    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="${GAMES[g].css}">${GAMES[g].name}</span>`).join("")}<span class="minkey">${perDollar(minimum)} minimum</span></div>`;
 
   const svg = el.querySelector("svg");
   const focus = el.querySelector("#focus");
@@ -329,7 +363,8 @@ function render() {
   document.getElementById("notices").innerHTML = noticesHtml(next);
   const verdict = document.getElementById("verdict");
   const rec = next.recommendation && next.recommendation[basis];
-  verdict.className = "card verdict" + (rec ? " accent-" + GAMES[rec.game].css : "");
+  const accent = !rec ? "" : worthPlaying(next) ? " accent-" + GAMES[rec.game].css : " accent-skip";
+  verdict.className = "card verdict" + accent;
   verdict.innerHTML = verdictHtml(next, basis);
   const order = rec ? [rec.game, otherGame(rec.game)] : Object.keys(GAMES);
   document.getElementById("games").innerHTML = order.map((g) => gameHtml(g, next[g], basis)).join("");
