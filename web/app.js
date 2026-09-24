@@ -130,20 +130,27 @@ function worthPlaying(next) {
   return recommendation.play ?? recommendation.top_prizes.per_dollar >= minimumToPlay(next);
 }
 
+// Two value tiles side by side; the recommended game's is tinted in its colour.
+function duelHtml(first, firstValue, secondValue, highlightFirst) {
+  const tile = (game, v, best) => `
+    <div class="duel-side ${GAMES[game].css}${best ? " is-best" : ""}">
+      <span class="duel-game">${GAMES[game].name}</span>
+      <span class="duel-value">${perDollar(v)}</span>
+      <span class="duel-unit">back per $1</span>
+    </div>`;
+  return `<div class="duel">${tile(first, firstValue, highlightFirst)}${tile(otherGame(first), secondValue, false)}</div>`;
+}
+
 function skipHtml(next) {
   const top = next.recommendation.top_prizes; // the minimum is judged on big prizes
   const best = top.game;
   const minimum = minimumToPlay(next);
   return `
-    <p class="eyebrow">Next draws</p>
-    <h1>Skip for now</h1>
-    <p class="when">Neither game reaches your ${perDollar(minimum)} minimum back per $1 in big prizes</p>
-    <div class="compare">
-      <div><span class="big">${perDollar(top.per_dollar)}</span><span class="label">${GAMES[best].name}</span></div>
-      <div class="vs">vs</div>
-      <div><span class="big">${perDollar(top.runner_up_per_dollar)}</span><span class="label">${GAMES[otherGame(best)].name}</span></div>
-    </div>
-    <p class="margin">The better one, ${GAMES[best].name}, is ${perDollar(minimum - top.per_dollar)} short.</p>`;
+    <p class="label">Recommendation</p>
+    <h1 class="hero-title">Skip for now</h1>
+    <p class="hero-sub">Neither game reaches the ${perDollar(minimum)} minimum back per $1 in big prizes.</p>
+    ${duelHtml(best, top.per_dollar, top.runner_up_per_dollar, false)}
+    <p class="hero-foot">The closer one, ${GAMES[best].name}, is <strong>${perDollar(minimum - top.per_dollar)} short</strong>.</p>`;
 }
 
 function verdictHtml(next, basis) {
@@ -154,57 +161,55 @@ function verdictHtml(next, basis) {
     const message = waiting
       ? "Waiting for the next jackpot to be posted after the last draw. Check back in an hour or two."
       : "Not enough data to compare the games yet.";
-    return `<p class="eyebrow">Better buy for the next draw</p><p class="loading">${message}</p>`;
+    return `<p class="label">Recommendation</p><p class="loading">${message}</p>`;
   }
   if (!worthPlaying(next)) return skipHtml(next);
   const best = rec.game;
   const other = otherGame(best);
   const counted = basis === "all_prizes" ? "all prizes" : "big prizes";
   return `
-    <p class="eyebrow">Better buy for the next draw</p>
-    <h1 class="${GAMES[best].css}">Play ${GAMES[best].name}</h1>
-    <p class="when">${esc(dayText(next[best].draw_date))} · ${esc(prizeLine(best, next[best]))}</p>
-    <div class="compare">
-      <div><span class="big ${GAMES[best].css}">${perDollar(rec.per_dollar)}</span><span class="label">${GAMES[best].name}</span></div>
-      <div class="vs">vs</div>
-      <div><span class="big">${perDollar(rec.runner_up_per_dollar)}</span><span class="label">${GAMES[other].name}</span></div>
-    </div>
-    <p class="margin">back per $1 in ${counted}: <strong>${perDollar(rec.margin)} more</strong> with ${GAMES[best].name}</p>
-    ${rec.close_call ? `<p class="margin"><span class="badge">Close call</span> the sales forecasts leave room for ${GAMES[other].name} to come out ahead</p>` : ""}`;
+    <p class="label">Recommendation</p>
+    <h1 class="hero-title">Play <span class="${GAMES[best].css}">${GAMES[best].name}</span></h1>
+    <p class="hero-sub">${esc(dayText(next[best].draw_date))} · ${esc(prizeLine(best, next[best]))}</p>
+    ${duelHtml(best, rec.per_dollar, rec.runner_up_per_dollar, true)}
+    <p class="hero-foot">Expected return in ${counted}: <strong>${perDollar(rec.margin)} more per $1</strong> with ${GAMES[best].name}.</p>
+    ${rec.close_call ? `<p class="hero-foot"><span class="badge">Close call</span> The sales forecasts leave room for ${GAMES[other].name} to come out ahead.</p>` : ""}`;
+}
+
+function figureHtml(label, value, tags) {
+  return `
+    <p class="label">${label}</p>
+    <span class="figure-value">${value}</span>
+    ${tags.length ? `<ul class="tags">${tags.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}`;
 }
 
 function prizesHtml(game, info) {
   if (game === "lottomax") {
-    const chips = [];
-    if (info.maxmillions_count) chips.push(`${info.maxmillions_count} × $1M MAXMILLIONS`);
-    if (info.maxplus_count) chips.push(`${info.maxplus_count} × ${money(info.maxplus_prize)} MAXPLUS`);
-    return `
-      <div class="prize"><span class="prize-main">${money(info.jackpot)}</span><span class="muted">jackpot</span></div>
-      <ul class="chips">${chips.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`;
+    const tags = [];
+    if (info.maxmillions_count) tags.push(`${info.maxmillions_count} × $1M MAXMILLIONS`);
+    if (info.maxplus_count) tags.push(`${info.maxplus_count} × ${money(info.maxplus_prize)} MAXPLUS`);
+    return figureHtml("Jackpot", money(info.jackpot), tags);
   }
-  return `
-    <div class="prize"><span class="prize-main">${money(info.gold_ball_amount)}</span><span class="muted">Gold Ball jackpot</span></div>
-    <ul class="chips">
-      <li>${info.balls_remaining} ${info.balls_remaining === 1 ? "ball" : "balls"} left, 1 gold</li>
-      <li>$1M if the drawn ticket gets a white ball</li>
-      <li>Classic $5M</li>
-    </ul>`;
+  const balls = `${info.balls_remaining} ${info.balls_remaining === 1 ? "ball" : "balls"} left, 1 gold`;
+  return figureHtml("Gold Ball jackpot", money(info.gold_ball_amount), [balls, "White ball pays $1M", "Classic $5M"]);
 }
 
 function gameHtml(game, info, basis) {
   const g = GAMES[game];
-  if (!info) {
-    return `<section class="card"><div class="game-head"><h2 class="${g.css}">${g.name}</h2></div><p class="muted">No data for the next draw.</p></section>`;
-  }
-  const head = `
+  const head = (when) => `
     <div class="game-head">
-      <h2 class="${g.css}">${g.name}</h2>
-      <span class="muted small">${esc(dayText(info.draw_date))} · #${info.draw_number ?? "?"}</span>
+      <span class="game-dot ${g.css}"></span>
+      <h3>${g.name}</h3>
+      ${when ? `<span class="game-when">${when}</span>` : ""}
     </div>`;
+  if (!info) {
+    return `<section class="card">${head("")}<p class="caption">No data for the next draw.</p></section>`;
+  }
+  const when = `${esc(dayText(info.draw_date))} · Draw ${info.draw_number ?? "?"}`;
   const value = info.value;
   const forecast = info.forecast;
   if (!value || !forecast) {
-    return `<section class="card">${head}${prizesHtml(game, info)}<p class="note">No sales forecast yet, so no value.</p></section>`;
+    return `<section class="card">${head(when)}${prizesHtml(game, info)}<p class="note">No sales forecast yet, so no value.</p></section>`;
   }
 
   const all = basis === "all_prizes";
@@ -217,34 +222,38 @@ function gameHtml(game, info, basis) {
     .map(([, v], i) => `<span style="width:${(100 * v) / total}%;background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></span>`)
     .join("");
   const legend = parts
-    .map(([key, v], i) => `<li><i style="background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></i>${esc(PARTS[key] ?? key)} ${perDollar(v)}</li>`)
+    .map(([key, v], i) => `<li><i style="background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></i>${esc(PARTS[key] ?? key)}<b>${perDollar(v)}</b></li>`)
     .join("");
   const rangeText = perDollar(low) !== perDollar(high)
     ? `${perDollar(low)}–${perDollar(high)} across the sales forecast`
-    : "barely moves with sales";
+    : "Barely moves with sales";
 
   const plays6 = 6 / value.price;
   const odds = value.odds_one_in;
-  const oddsRow = (label, n) =>
-    `<div><dt>${label}</dt><dd>${oneIn(n / plays6)}${plays6 > 1 ? `<small>${oneIn(n)} per $${value.price} play</small>` : ""}</dd></div>`;
+  const perPlay = (n) => (plays6 > 1 ? `${oneIn(n)} per $${value.price} play` : `one $${value.price} play`);
+  const tile = (label, main, detail) => `<div><dt>${label}</dt><dd>${main}<small>${detail}</small></dd></div>`;
 
   const notes = [];
   if (forecast.assumes_no_super_draw) notes.push("Assumes a regular draw: Super Draws aren't announced where this page can read them.");
 
   return `
     <section class="card">
-      ${head}
+      ${head(when)}
       ${prizesHtml(game, info)}
-      <div class="value">
-        <div class="value-row"><span class="value-num">${perDollar(perDollarValue)}</span><span class="muted">back per $1${all ? "" : " in big prizes"}</span></div>
-        <p class="muted small">${rangeText}</p>
+      <div class="valuebox">
+        <div class="valuebox-head">
+          <span class="label">Value per $1 · ${all ? "all prizes" : "big prizes"}</span>
+          <span class="valuebox-num">${perDollar(perDollarValue)}</span>
+        </div>
+        <p class="caption">${rangeText}</p>
         <div class="bar">${bar}</div>
         <ul class="legend">${legend}</ul>
       </div>
       <dl class="stats">
-        ${oddsRow("Jackpot odds for $6", odds.jackpot)}
-        ${oddsRow("$1M or more for $6", odds.million_plus)}
-        <div><dt>Sales forecast</dt><dd>${playsText(forecast.plays)} plays<small>${playsText(forecast.low)}–${playsText(forecast.high)}, typical miss ${(forecast.backtest_mape * 100).toFixed(1)}%</small></dd></div>
+        ${tile("Jackpot odds · $6", oneIn(odds.jackpot / plays6), perPlay(odds.jackpot))}
+        ${tile("$1M+ odds · $6", oneIn(odds.million_plus / plays6), perPlay(odds.million_plus))}
+        ${tile("Sales forecast", `${playsText(forecast.plays)} plays`, `${playsText(forecast.low)}–${playsText(forecast.high)} likely`)}
+        ${tile("Forecast accuracy", `±${(forecast.backtest_mape * 100).toFixed(1)}%`, "typical miss, backtested")}
       </dl>
       ${notes.map((n) => `<p class="note">${esc(n)}</p>`).join("")}
     </section>`;
@@ -283,7 +292,7 @@ function renderChart(chart, draws, next) {
   const series = draws.length ? chartSeries(draws, next, chart) : [];
   const all = series.flatMap((s) => s.points.concat(s.next ? [s.next] : []));
   if (!all.length) {
-    el.innerHTML = `<p class="muted small">No history yet.</p>`;
+    el.innerHTML = `<p class="caption">No history yet.</p>`;
     return;
   }
   const W = 360, H = 220, L = 38, R = 8, T = 8, B = 22; // about 1 unit per CSS pixel on a phone
@@ -323,7 +332,7 @@ function renderChart(chart, draws, next) {
     .join("");
 
   const minimumLine = minimum == null ? "" : `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
-  const minimumKey = minimum == null ? "" : `<span class="minkey">${perDollar(minimum)} minimum</span>`;
+  const minimumKey = minimum == null ? "" : `<span class="key-min">${perDollar(minimum)} minimum</span>`;
   const described = chart.allPrizes ? "with all prizes" : "in big prizes";
 
   el.innerHTML = `
@@ -331,7 +340,7 @@ function renderChart(chart, draws, next) {
       ${grid.join("")}${months.join("")}${minimumLine}${shapes}
       <circle class="focus" r="6" cx="-20" cy="-20"/>
     </svg>
-    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="${GAMES[g].css}">${GAMES[g].name}</span>`).join("")}${minimumKey}</div>`;
+    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="key-${GAMES[g].css}">${GAMES[g].name}</span>`).join("")}${minimumKey}</div>`;
 
   const svg = el.querySelector("svg");
   const focus = el.querySelector(".focus");
@@ -384,14 +393,23 @@ function readoutText(p, chart) {
 
 // ---------- loading and events ----------
 
+// The pill in the top corner: green when fresh, amber when stale, red after an error.
+function setStatus(text, kind) {
+  const button = document.getElementById("refresh");
+  button.className = `status is-${kind}`;
+  button.querySelector(".status-text").textContent = text;
+}
+
 function render() {
-  const { next, draws, basis } = state;
-  document.getElementById("refresh").textContent = `Updated ${agoText(next.scraped_at)}`;
+  const { next, basis } = state;
+  const hoursOld = (Date.now() - Date.parse(next.scraped_at)) / 36e5;
+  const health = next.errors && next.errors.length ? "error" : hoursOld > STALE_HOURS ? "stale" : "ok";
+  setStatus(`Updated ${agoText(next.scraped_at)}`, health);
   document.getElementById("notices").innerHTML = noticesHtml(next);
   const verdict = document.getElementById("verdict");
   const rec = next.recommendation && next.recommendation[basis];
   const accent = !rec ? "" : worthPlaying(next) ? " accent-" + GAMES[rec.game].css : " accent-skip";
-  verdict.className = "card verdict" + accent;
+  verdict.className = "card hero" + accent;
   verdict.innerHTML = verdictHtml(next, basis);
   const order = rec ? [rec.game, otherGame(rec.game)] : Object.keys(GAMES);
   document.getElementById("games").innerHTML = order.map((g) => gameHtml(g, next[g], basis)).join("");
@@ -407,7 +425,7 @@ function show(withCharts) {
     if (withCharts) for (const chart of CHARTS) renderChart(chart, state.draws, state.next);
   } catch (error) {
     console.error(error);
-    showProblem(`Something went wrong showing the numbers (${error.message}). Tap the Updated button to try again.`);
+    showProblem(`Something went wrong showing the numbers (${error.message}). Tap the status button at the top to try again.`);
   }
 }
 
@@ -424,13 +442,13 @@ async function fetchJson(path) {
 async function load() {
   if (state.loading) return;
   state.loading = true;
-  document.getElementById("refresh").textContent = "Updating…";
+  setStatus("Updating", "busy");
   try {
     const [next, draws] = await Promise.all([fetchJson("data/next.json"), fetchJson("data/draws.json")]);
     Object.assign(state, { next, draws: draws.draws, loadedAt: Date.now() });
   } catch (error) {
     showProblem(`Couldn't load the data (${error.message}). Tap Retry, or try again in a few minutes.`);
-    document.getElementById("refresh").textContent = "Retry";
+    setStatus("Retry", "error");
     return;
   } finally {
     state.loading = false;
