@@ -10,8 +10,8 @@ based on real jackpots, real sales and real odds.
 | M0 | Data source audit | done |
 | M1 | Scraper and data model | done |
 | M2 | Backfill history (6/49 from #4033, Lotto Max 7/52 from #1226) | done |
-| M3 | Sales estimator (exact, from the Pools Fund) | next |
-| M4 | Sales forecast model | |
+| M3 | Sales estimator (exact, from the Pools Fund) | done |
+| M4 | Sales forecast model | next |
 | M5 | Value engine | |
 | M6 | Phone web page | |
 | M7 | Scheduled runs and alerts | |
@@ -56,6 +56,16 @@ Records hold the winning numbers, `tier_winners` and `tier_prizes` per prize cat
 - 6/49: `gold_ball_drawn` (`gold`/`white`), `gold_ball_prize`, the derived `gold_ball_amount` and
   `balls_remaining` at that draw, and `super_draw` / `super_draw_prizes`.
 - Lotto Max: `jackpot`, `maxmillions_count`/`_won`, `maxplus_count`/`_won`, `maxplus_prize`.
+- Both: `est_plays`, the plays sold (a $3 6/49 play or a $6 four-line Lotto Max play), and
+  `est_plays_check`, a rough cross-check from winners ÷ odds.
+
+`est_plays` is recovered exactly from the prizes (`lottocalc/sales.py`). The game conditions
+send a fixed amount per play to a Prize Fund ($0.55 for 6/49, $1.19 for Lotto Max). The fixed
+prizes are paid from it, with free plays counted at $1.44 and $2.88, and the rest is shared
+between the pooled categories by fixed percentages. So each pooled prize reveals the Pools
+Fund, and plays = (Pools Fund + fixed prizes paid) ÷ Prize Fund per play. It matches Lottery
+Canada's published sales to 0.01%. The winners ÷ odds cross-check swings ±15% on 6/49 because
+players favour certain numbers, so it only raises a warning when it is far off.
 
 Past 6/49 draws don't show their Gold Ball jackpot. It is derived: each gold-ball win's prize
 anchors a chain, each white ball adds $2M, and a gold ball resets to $10M with 30 balls. Any

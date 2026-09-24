@@ -15,7 +15,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from lottocalc import model, store
+from lottocalc import model, sales, store
 from lottocalc.http import FetchError, PoliteSession
 from lottocalc.sources import ParseError, lotterycanada, wclc
 
@@ -83,6 +83,7 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
     for game in model.GAMES:
         records = sorted((d for d in draws if d["game"] == game), key=lambda d: d["draw_number"])
         report.warnings += model.check_history(game, records)
+        report.warnings += sales.annotate(records)
         info = upcoming.get(game)
         if info is None:
             previous = (previous_next or {}).get(game)
