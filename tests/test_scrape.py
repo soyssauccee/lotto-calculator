@@ -83,6 +83,7 @@ def test_first_run_stores_the_latest_draws_and_the_next_draw():
         "balls_remaining": 30,
         "source": "wclc",
         "forecast": None,
+        "value": None,
         "as_of": STAMP,
     }
     assert next_doc[model.LOTTO_MAX] == {
@@ -94,6 +95,7 @@ def test_first_run_stores_the_latest_draws_and_the_next_draw():
         "maxplus_prize": 100_000,
         "source": "wclc",
         "forecast": None,
+        "value": None,
         "as_of": STAMP,
     }
     assert (next_doc["errors"], next_doc["warnings"]) == (report.errors, report.warnings)
@@ -108,6 +110,10 @@ def test_next_draw_forecasts_come_from_the_stored_history():
     assert lotto649["plays"] == pytest.approx(3_745_427, rel=1e-6)  # #4453 actually sold 3,651,921
     assert lotto649["low"] < 3_651_921 < lotto649["high"]
     assert lottomax["low"] < lottomax["plays"] < lottomax["high"]
+    # $60M Lotto Max with 6 MAXMILLIONS beats a fresh $10M Gold Ball
+    assert next_doc["recommendation"]["top_prizes"]["game"] == model.LOTTO_MAX
+    assert next_doc[model.LOTTO_MAX]["value"]["per_dollar"] > next_doc[model.LOTTO_649]["value"]["per_dollar"]
+    assert all(d["value_per_dollar"] for d in draws)
     json.dumps(next_doc)  # plain JSON types only
 
 

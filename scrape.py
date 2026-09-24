@@ -15,7 +15,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from lottocalc import forecast, model, sales, store
+from lottocalc import forecast, model, sales, store, value
 from lottocalc.http import FetchError, PoliteSession
 from lottocalc.sources import ParseError, lotterycanada, wclc
 
@@ -85,13 +85,15 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         report.warnings += model.check_history(game, records)
         report.warnings += sales.annotate(records)
         info = upcoming.get(game)
+        if info is not None:
+            info = {"draw_number": _next_draw_number(game, info, records, report), **info}
+        if game == model.LOTTO_649:
+            report.warnings += model.derive_gold_ball(records, info)
+        value.annotate(records)  # needs est_plays and the Gold Ball state
         if info is None:
             previous = (previous_next or {}).get(game)
             next_doc[game] = dict(previous, stale=True) if previous else None
-            if game == model.LOTTO_649:
-                report.warnings += model.derive_gold_ball(records)
             continue
-        info = {"draw_number": _next_draw_number(game, info, records, report), **info}
         if date.fromisoformat(info["draw_date"]) < today:
             report.warnings.append(
                 f"{model.GAME_NAMES[game]}: the {info['draw_date']} draw has passed "
@@ -100,13 +102,13 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         errors, warnings = model.check_next(game, info)
         report.errors += errors
         report.warnings += warnings
-        if game == model.LOTTO_649:
-            report.warnings += model.derive_gold_ball(records, info)
         if info["draw_number"] and not errors:
             info["forecast"] = forecast.forecast_next(game, records, info)
             if info["forecast"] is None:
                 report.warnings.append(f"{model.GAME_NAMES[game]}: too little history to forecast sales; run --backfill")
+            info["value"] = value.next_draw_value(game, info)
         next_doc[game] = dict(info, as_of=stamp)
+    next_doc["recommendation"] = value.recommend({g: (next_doc[g] or {}).get("value") for g in model.GAMES})
     next_doc["errors"] = report.errors
     next_doc["warnings"] = report.warnings
     return next_doc, report
@@ -186,6 +188,12 @@ def summarize(next_doc, report, requests_made):
         lines.append(
             f"Lotto Max   next {info['draw_date']} (#{info['draw_number']}): jackpot {dollars(info['jackpot'])}, "
             f"{info['maxmillions_count']} MAXMILLIONS, {info['maxplus_count']} MAXPLUS{sales_forecast(info)}  {origin(info)}"
+        )
+    best = (next_doc.get("recommendation") or {}).get("top_prizes")
+    if best:
+        lines.append(
+            f"Best buy: {model.GAME_NAMES[best['game']]}, ${best['per_dollar']:.2f} vs ${best['runner_up_per_dollar']:.2f} "
+            f"back per $1 in top prizes{' (close call)' if best['close_call'] else ''}"
         )
     for game in model.GAMES:
         added = sorted(n for g, n, _ in report.added if g == game)

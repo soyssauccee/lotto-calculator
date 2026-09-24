@@ -55,6 +55,13 @@ def balls_for_jackpot(jackpot):
     return balls
 
 
+def expected_maxmillions(jackpot):
+    """MAXMILLIONS prizes ILC has offered at this jackpot: 2 more per $5M from $50M (50→2 ... 70→10)."""
+    if jackpot < MAXMILLIONS_FROM:
+        return 0
+    return 2 * ((jackpot - MAXMILLIONS_FROM) // 5_000_000 + 1)
+
+
 def draws_between(game, after, until):
     """Scheduled draw dates d with after < d <= until."""
     dates = []
@@ -176,7 +183,8 @@ def check_draw(record):
 
 
 def check_next(game, info):
-    """(errors, warnings) for next-draw info; fills balls_remaining from the ladder if absent."""
+    """(errors, warnings) for next-draw info. Fills in what the rules imply when a source omits it:
+    6/49 balls remaining from the jackpot, Lotto Max MAXPLUS and MAXMILLIONS counts from the jackpot."""
     name, errors, warnings = GAME_NAMES[game], [], []
     if not info.get("draw_date"):
         errors.append(f"{name}: next draw date missing")
@@ -203,9 +211,11 @@ def check_next(game, info):
         if not low <= jackpot <= high:
             warnings.append(f"{name}: next jackpot ${jackpot:,} is outside the usual range")
         if info.get("maxplus_count") is None:
-            warnings.append(f"{name}: next MAXPLUS count not shown")
+            info["maxplus_count"], info["maxplus_prize"] = jackpot // MAXPLUS_TRANCHE, 100_000
+            warnings.append(f"{name}: MAXPLUS prizes not shown; assumed {info['maxplus_count']} x $100,000")
         elif info["maxplus_count"] < jackpot // MAXPLUS_TRANCHE:
             warnings.append(f"{name}: only {info['maxplus_count']} MAXPLUS prizes for a ${jackpot:,} jackpot")
         if info.get("maxmillions_count") is None:
-            warnings.append(f"{name}: next MAXMILLIONS count not shown")
+            info["maxmillions_count"] = expected_maxmillions(jackpot)
+            warnings.append(f"{name}: MAXMILLIONS count not shown; assumed {info['maxmillions_count']} from the jackpot")
     return errors, warnings

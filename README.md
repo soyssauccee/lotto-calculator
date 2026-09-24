@@ -12,8 +12,8 @@ based on real jackpots, real sales and real odds.
 | M2 | Backfill history (6/49 from #4033, Lotto Max 7/52 from #1226) | done |
 | M3 | Sales estimator (exact, from the Pools Fund) | done |
 | M4 | Sales forecast model | done |
-| M5 | Value engine | next |
-| M6 | Phone web page | |
+| M5 | Value engine | done |
+| M6 | Phone web page | next |
 | M7 | Scheduled runs and alerts | |
 
 ## Setup
@@ -30,6 +30,8 @@ py -3.13 -m venv .venv
 .venv\Scripts\python scrape.py --backfill  # also fetch every draw of the current formats (~15 min)
 .venv\Scripts\python scrape.py --dry-run   # fetch and report, write nothing
 .venv\Scripts\python forecast.py           # backtest the sales forecasts, show next-draw forecasts
+.venv\Scripts\python recommend.py          # which game to play next, with the full breakdown
+.venv\Scripts\python recommend.py --all-prizes   # same, counting the lower prize categories too
 .venv\Scripts\python -m pytest             # offline tests against saved pages
 ```
 
@@ -47,9 +49,12 @@ then keep their last good values and `next.json` lists the errors.
 | `gold_ball_amount`, `balls_remaining` | 6/49 Gold Ball jackpot and balls in the drum (odds of gold = 1/balls) |
 | `maxmillions_count`, `maxplus_count`, `maxplus_prize` | Lotto Max extra prizes |
 | `forecast` | predicted `plays` with an 80% range (`low`–`high`), and the model's backtest error |
+| `value` | expected payout per $1 in big prizes (`per_dollar`, with a range from the sales forecast), with all prizes (`per_dollar_all_prizes`), the parts, and the odds per play |
 | `source`, `as_of` | where and when it was read; `stale: true` if every source failed |
 
-Top-level `errors` and `warnings` list what went wrong in the last run.
+Top-level `recommendation` names the better buy on big prizes (`top_prizes`) and on all prizes
+(`all_prizes`), with the `margin` per $1 and `close_call: true` when the runner-up could come out
+ahead within the forecast ranges. Top-level `errors` and `warnings` list what went wrong in the last run.
 
 **`data/draws.json`**: every stored draw, one per line, sorted by game and draw number.
 Records hold the winning numbers, `tier_winners` and `tier_prizes` per prize category
@@ -59,7 +64,8 @@ Records hold the winning numbers, `tier_winners` and `tier_prizes` per prize cat
   `balls_remaining` at that draw, and `super_draw` / `super_draw_prizes`.
 - Lotto Max: `jackpot`, `maxmillions_count`/`_won`, `maxplus_count`/`_won`, `maxplus_prize`.
 - Both: `est_plays`, the plays sold (a $3 6/49 play or a $6 four-line Lotto Max play), and
-  `est_plays_check`, a rough cross-check from winners ÷ odds.
+  `est_plays_check`, a rough cross-check from winners ÷ odds; `value_per_dollar`, what a
+  ticket for that draw was worth in big prizes, given the plays actually sold.
 
 `est_plays` is recovered exactly from the prizes (`lottocalc/sales.py`). The game conditions
 send a fixed amount per play to a Prize Fund ($0.55 for 6/49, $1.19 for Lotto Max). The fixed
@@ -96,6 +102,36 @@ Walk-forward backtest, where each draw is predicted only from the draws before i
 6/49 errors are larger on special draws (5.0% with ≤5 balls, a Super Draw or the holidays,
 vs 2.3% otherwise), so those draws get their own, wider range. Upcoming Super Draws are not
 announced anywhere this project can read, so forecasts assume a normal draw.
+
+## Value
+
+`lottocalc/value.py` values a ticket as its expected payout per $1: each prize times its odds,
+times the share you keep if others win it too.
+
+- **Lotto Max** ($6, 4 lines). A play matches the main jackpot or any MAXPLUS or MAXMILLIONS
+  series with p = 1 in 33,446,140. Other winning lines are Poisson with mean λ = N·p (N = forecast
+  plays), so the expected share is s = (1 − e^−λ)/λ.
+  Value = s × (jackpot + MAXPLUS prizes + MAXMILLIONS prizes) × p ÷ $6.
+- **Lotto 6/49** ($3). One play's number out of N wins the Gold Ball Draw: the jackpot with
+  probability 1/balls, otherwise $1M, never shared. The Classic $5M is shared like above.
+  Value = [(J/balls + $1M × (1 − 1/balls)) ÷ N + s × $5M ÷ C(49,6)] ÷ $3.
+  Example: $40M with 15 balls and 4.5M plays gives $0.369.
+- **Lower categories** (the `--all-prizes` toggle) add about $0.18 (6/49) and $0.20 (Lotto Max)
+  per $1: fixed prizes at their odds, free plays at the game conditions' deemed value, and each
+  pool's expected share.
+
+Checked against history: the model expects 27.1 Gold Ball jackpots, 124 Classic wins and 151
+MAXPLUS wins, and history shows 24, 126 and 165. All three are within 1.2 standard deviations.
+
+Rule of thumb from the stored draws (median value per $1 in big prizes):
+
+| 6/49 balls left | 30–26 | 25–21 | 20–16 | 15–11 | 10–6 | 5–3 | 2–1 |
+|---|---|---|---|---|---|---|---|
+| 6/49 | $0.22 | $0.25 | $0.30 | $0.36 | $0.51 | $0.79 | $1.62 |
+
+| Lotto Max jackpot | $10M | $20M | $30M | $40M | $50M | $55M | $60M | $65M | $70M |
+|---|---|---|---|---|---|---|---|---|---|
+| Lotto Max | $0.05 | $0.10 | $0.16 | $0.21 | $0.27 | $0.30 | $0.33 | $0.37 | $0.39 |
 
 ## Sources
 

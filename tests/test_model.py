@@ -125,6 +125,20 @@ def test_check_next_flags_balls_that_dont_match_the_jackpot():
     assert errors == [] and "expected 29" in warnings[0]
 
 
+@pytest.mark.parametrize(
+    "jackpot, count", [(45_000_000, 0), (50_000_000, 2), (55_000_000, 4), (60_000_000, 6), (70_000_000, 10)]
+)
+def test_expected_maxmillions_follows_the_observed_rule(jackpot, count):
+    assert model.expected_maxmillions(jackpot) == count
+
+
+def test_check_next_fills_lotto_max_extras_a_source_left_out():
+    info = {"draw_date": "2026-09-25", "jackpot": 60_000_000, "maxmillions_count": None, "maxplus_count": None}
+    errors, warnings = model.check_next(model.LOTTO_MAX, info)
+    assert errors == [] and len(warnings) == 2
+    assert (info["maxmillions_count"], info["maxplus_count"], info["maxplus_prize"]) == (6, 60, 100_000)
+
+
 def test_check_next_requires_a_jackpot():
     errors, _ = model.check_next(model.LOTTO_MAX, {"draw_date": "2026-09-25", "jackpot": None})
     assert errors
