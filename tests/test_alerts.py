@@ -186,6 +186,27 @@ def test_problem_and_recovery_are_pushed_when_ntfy_is_set_up(pushed):
     assert pushed[1][3]["priority"] == "low"
 
 
+def test_ntfy_outage_falls_back_to_a_github_comment(monkeypatch):
+    def down(*args, **kwargs):
+        raise alert.requests.ConnectionError("ntfy.sh unreachable")
+
+    monkeypatch.setattr(alert, "push_ntfy", down)
+    github = FakeGitHub()
+    flipped = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.05, g649_value=0.24, max_draw=1274)
+    done = alert.handle(github, CLEAN_NOW, flipped, ntfy_topic="secret-topic", **OPTIONS)
+    assert done == ["ntfy push failed (ntfy.sh unreachable)", "posted a value alert on issue #11"]
+    assert github.calls[-1][2].startswith("@soyssauccee Neither game is worth playing now")
+
+
+def test_ntfy_outage_doesnt_stop_the_problem_issue(monkeypatch):
+    monkeypatch.setattr(alert, "push_ntfy", lambda *a, **k: (_ for _ in ()).throw(alert.requests.Timeout("slow")))
+    github = FakeGitHub()
+    first, second = doc("2026-09-24T21:17:00Z", errors=BROKEN), doc("2026-09-25T04:17:00Z", errors=BROKEN)
+    assert alert.handle(github, first, second, ntfy_topic="secret-topic", **OPTIONS) == [
+        "opened issue #11", "ntfy push failed (slow)",
+    ]
+
+
 def test_github_client_sends_authorised_requests():
     class Response:
         def __init__(self, payload):

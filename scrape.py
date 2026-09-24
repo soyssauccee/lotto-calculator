@@ -48,18 +48,18 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         name = model.GAME_NAMES[game]
         try:
             html = session.get(wclc.LISTING_URLS[game])
-        except FetchError as exc:
-            report.errors.append(f"{name}: WCLC results page unavailable, no new draws ({exc})")
+        except Exception as exc:
+            report.errors.append(f"{name}: WCLC results page unavailable, no new draws ({_problem(exc)})")
             continue
         try:
             listings[game] = wclc.parse_draw_list(html)
-        except ParseError as exc:
-            report.errors.append(f"{name}: WCLC results page unreadable, no new draws ({exc})")
+        except Exception as exc:
+            report.errors.append(f"{name}: WCLC results page unreadable, no new draws ({_problem(exc)})")
         if not upcoming:
             try:
                 upcoming = {g: dict(info, source="wclc") for g, info in wclc.parse_next(html).items()}
-            except ParseError as exc:
-                sidebar_problem = f"WCLC next-draw sidebar unreadable ({exc})"
+            except Exception as exc:
+                sidebar_problem = f"WCLC next-draw sidebar unreadable ({_problem(exc)})"
 
     for game in model.GAMES:
         if game in upcoming:
@@ -67,8 +67,8 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         name = model.GAME_NAMES[game]
         try:
             info = lotterycanada.parse_next(session.get(lotterycanada.NEXT_URLS[game]), game)
-        except (FetchError, ParseError) as exc:
-            report.errors.append(f"{name}: next draw unavailable from WCLC and Lottery Canada ({exc})")
+        except Exception as exc:
+            report.errors.append(f"{name}: next draw unavailable from WCLC and Lottery Canada ({_problem(exc)})")
             continue
         upcoming[game] = dict(info, source="lotterycanada")
         report.warnings.append(f"{name}: next draw taken from the backup source, Lottery Canada")
@@ -103,10 +103,15 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         report.errors += errors
         report.warnings += warnings
         if info["draw_number"] and not errors:
-            info["forecast"] = forecast.forecast_next(game, records, info)
-            if info["forecast"] is None:
-                report.warnings.append(f"{model.GAME_NAMES[game]}: too little history to forecast sales; run --backfill")
-            info["value"] = value.next_draw_value(game, info)
+            try:
+                info["forecast"] = forecast.forecast_next(game, records, info)
+                info["value"] = value.next_draw_value(game, info)
+            except Exception as exc:
+                report.errors.append(f"{model.GAME_NAMES[game]}: sales forecast failed ({_problem(exc)})")
+                info["forecast"] = info["value"] = None
+            else:
+                if info["forecast"] is None:
+                    report.warnings.append(f"{model.GAME_NAMES[game]}: too little history to forecast sales; run --backfill")
         next_doc[game] = dict(info, as_of=stamp)
     next_doc["recommendation"] = value.recommend({g: (next_doc[g] or {}).get("value") for g in model.GAMES})
     next_doc["errors"] = report.errors
@@ -133,8 +138,8 @@ def _catch_up(session, game, listing, draws, stamp, report, first_run_draws, bac
         try:
             html = session.get(wclc.DETAILS_URLS[game].format(number))
             record = wclc.parse_prize_details(html, game, number)
-        except (FetchError, ParseError) as exc:
-            report.errors.append(f"{name} draw {number}: {exc}")
+        except Exception as exc:
+            report.errors.append(f"{name} draw {number}: {_problem(exc)}")
             continue
         problems = model.check_draw(record)
         if problems:
@@ -146,6 +151,15 @@ def _catch_up(session, game, listing, draws, stamp, report, first_run_draws, bac
         if checkpoint and len(report.added) % CHECKPOINT_EVERY == 0:
             checkpoint(draws)
             print(f"  {name}: saved through draw {number} ({len(report.added)} new so far)", flush=True)
+
+
+def _problem(exc):
+    """An error message for the report. Anything other than a fetch or parse failure is a
+    surprise (most likely a site change); it is recorded with its type rather than
+    crashing the run, so the rest of the data still updates and the alert says what broke."""
+    if isinstance(exc, (FetchError, ParseError)):
+        return str(exc)
+    return f"unexpected {type(exc).__name__}: {exc}"
 
 
 def _next_draw_number(game, info, records, report):
@@ -194,12 +208,12 @@ def summarize(next_doc, report, requests_made):
     if best and recommendation.get("play", True):
         lines.append(
             f"Best buy: {model.GAME_NAMES[best['game']]}, ${best['per_dollar']:.2f} vs ${best['runner_up_per_dollar']:.2f} "
-            f"back per $1 in top prizes{' (close call)' if best['close_call'] else ''}"
+            f"back per $1 in big prizes{' (close call)' if best['close_call'] else ''}"
         )
     elif best:
         lines.append(
             f"Skip for now: the better game, {model.GAME_NAMES[best['game']]}, is worth ${best['per_dollar']:.2f} "
-            f"back per $1 in top prizes, under the ${recommendation['min_per_dollar']:.2f} minimum"
+            f"back per $1 in big prizes, under the ${recommendation['min_per_dollar']:.2f} minimum"
         )
     for game in model.GAMES:
         added = sorted(n for g, n, _ in report.added if g == game)

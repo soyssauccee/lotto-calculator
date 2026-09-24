@@ -193,6 +193,39 @@ def test_unreadable_draw_is_reported_and_not_stored():
     assert any("2026-09-19 not stored yet" in w for w in report.warnings)
 
 
+def test_a_surprise_error_in_one_draw_is_reported_and_the_run_carries_on(monkeypatch):
+    real_parse = wclc.parse_prize_details
+
+    def flaky(html, game, number):
+        if number == 4451:
+            raise IndexError("list index out of range")
+        return real_parse(html, game, number)
+
+    monkeypatch.setattr(wclc, "parse_prize_details", flaky)
+    draws = [stored(model.LOTTO_649, 4450), stored(model.LOTTO_MAX, 1272)]
+    next_doc, report = scrape.update(FakeSession(LISTINGS | DETAILS), draws, None, NOW)
+
+    assert report.errors == ["Lotto 6/49 draw 4451: unexpected IndexError: list index out of range"]
+    assert numbers(draws, model.LOTTO_649) == [4450, 4452]  # the draw after it still arrived
+    assert next_doc[model.LOTTO_649]["gold_ball_amount"] == 10_000_000
+
+
+def test_a_failing_forecast_is_reported_without_losing_the_rest(monkeypatch):
+    def broken(game, records, info):
+        raise ValueError("SVD did not converge")
+
+    monkeypatch.setattr(scrape.forecast, "forecast_next", broken)
+    draws = store.load_draws(FIXTURES / "draws_history.json")
+    next_doc, report = scrape.update(FakeSession(LISTINGS), draws, None, NOW)
+
+    assert report.errors == [
+        "Lotto 6/49: sales forecast failed (unexpected ValueError: SVD did not converge)",
+        "Lotto Max: sales forecast failed (unexpected ValueError: SVD did not converge)",
+    ]
+    assert next_doc[model.LOTTO_MAX]["jackpot"] == 60_000_000  # jackpots still update
+    assert next_doc[model.LOTTO_MAX]["value"] is None and next_doc["recommendation"] is None
+
+
 def test_main_updates_both_files_for_the_latest_draw(tmp_path, monkeypatch):
     draws_path, next_path = tmp_path / "draws.json", tmp_path / "next.json"
     store.write_if_changed(draws_path, store.dumps_draws([stored(model.LOTTO_649, 4451), stored(model.LOTTO_MAX, 1271)]))

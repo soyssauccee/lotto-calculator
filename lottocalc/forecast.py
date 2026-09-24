@@ -91,13 +91,22 @@ def _log_forecast(X, y, x_next):
     return float(x_next @ beta + LEVEL_WEIGHT * recent.mean())
 
 
-def _history(draws):
-    return sorted((d for d in draws if d.get("est_plays")), key=lambda d: d["draw_number"])
+NEEDED = {
+    model.LOTTO_649: ("est_plays", "gold_ball_amount", "balls_remaining"),
+    model.LOTTO_MAX: ("est_plays", "jackpot"),
+}
+
+
+def _history(game, draws):
+    """The game's draws with sales and every feature known, in draw order. A draw whose
+    Gold Ball state couldn't be derived (after a fetch failure) is left out, not fatal."""
+    usable = (d for d in draws if all(d.get(field) for field in NEEDED[game]))
+    return sorted(usable, key=lambda d: d["draw_number"])
 
 
 def backtest(game, draws):
     """Predict each draw after the first MIN_TRAINING from the draws before it only."""
-    history = _history(draws)
+    history = _history(game, draws)
     X = _design(game, history)
     y = np.log([d["est_plays"] for d in history])
     predictions = []
@@ -157,7 +166,7 @@ def forecast_next(game, draws, upcoming):
 
     `upcoming` is the next-draw info from next.json; it is treated as a normal (non-Super) draw.
     """
-    history = _history(draws)
+    history = _history(game, draws)
     if len(history) < MIN_TRAINING[game] + MIN_REGIME_ERRORS:
         return None
     predictions = backtest(game, history)

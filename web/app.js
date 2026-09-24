@@ -149,7 +149,12 @@ function skipHtml(next) {
 function verdictHtml(next, basis) {
   const rec = next.recommendation && next.recommendation[basis];
   if (!rec) {
-    return `<p class="eyebrow">Better buy for the next draw</p><p class="loading">Not enough data to compare the games yet.</p>`;
+    // Between a draw and the posting of the next jackpot, the source still lists the finished draw.
+    const waiting = Object.keys(GAMES).some((g) => next[g] && !next[g].draw_number);
+    const message = waiting
+      ? "Waiting for the next jackpot to be posted after the last draw. Check back in an hour or two."
+      : "Not enough data to compare the games yet.";
+    return `<p class="eyebrow">Better buy for the next draw</p><p class="loading">${message}</p>`;
   }
   if (!worthPlaying(next)) return skipHtml(next);
   const best = rec.game;
@@ -212,7 +217,7 @@ function gameHtml(game, info, basis) {
     .map(([, v], i) => `<span style="width:${(100 * v) / total}%;background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></span>`)
     .join("");
   const legend = parts
-    .map(([key, v], i) => `<li><i style="background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></i>${PARTS[key] ?? key} ${perDollar(v)}</li>`)
+    .map(([key, v], i) => `<li><i style="background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></i>${esc(PARTS[key] ?? key)} ${perDollar(v)}</li>`)
     .join("");
   const rangeText = perDollar(low) !== perDollar(high)
     ? `${perDollar(low)}–${perDollar(high)} across the sales forecast`
@@ -389,7 +394,7 @@ async function load() {
     Object.assign(state, { next, draws: draws.draws, loadedAt: Date.now() });
     render();
   } catch (error) {
-    document.getElementById("notices").innerHTML = `<p class="notice error">Couldn't load the data (${esc(error.message)}). Pull to refresh or try again later.</p>`;
+    document.getElementById("notices").innerHTML = `<p class="notice error">Couldn't load the data (${esc(error.message)}). Tap Retry, or try again in a few minutes.</p>`;
     document.getElementById("refresh").textContent = "Retry";
   } finally {
     state.loading = false;

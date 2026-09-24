@@ -76,6 +76,14 @@ def test_recent_misses_pull_the_forecast():
     assert 1.04 < forecast.forecast_next(model.LOTTO_649, hot, upcoming)["plays"] / plain < 1.10
 
 
+def test_draws_with_an_unknown_gold_ball_state_are_left_out():
+    draws = synthetic_649(150)
+    draws[140] = dict(draws[140], gold_ball_amount=None, balls_remaining=None)  # e.g. cut off by a failed fetch
+    result = forecast.forecast_next(model.LOTTO_649, draws, upcoming_after(draws))
+    assert result is not None and result["plays"] > 0
+    assert len(forecast.backtest(model.LOTTO_649, draws)) == 149 - forecast.MIN_TRAINING[model.LOTTO_649]
+
+
 def test_too_little_history_gives_no_forecast():
     draws = synthetic_649(forecast.MIN_TRAINING[model.LOTTO_649] + 5)
     assert forecast.forecast_next(model.LOTTO_649, draws, upcoming_after(draws)) is None

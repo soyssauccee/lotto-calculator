@@ -1,7 +1,8 @@
 """HTTP client that stays polite to the sites being scraped.
 
 Every request carries an identifiable User-Agent, requests to the same host are
-spaced out, and only transient failures (timeouts, 429, 5xx) are retried.
+spaced out, and only failures that may be transient (network errors, 429, 5xx)
+are retried.
 """
 import time
 from urllib.parse import urlsplit
@@ -40,7 +41,7 @@ class PoliteSession:
             self._wait_turn(host)
             try:
                 response = self._session.get(url, timeout=self.timeout)
-            except (requests.ConnectionError, requests.Timeout) as exc:
+            except requests.RequestException as exc:  # dropped connections, timeouts, cut-off bodies
                 problem = exc
                 continue
             finally:

@@ -71,6 +71,16 @@ def push_ntfy(topic, message, click_url, title="Lotto Calculator", tags="moneyba
     response.raise_for_status()
 
 
+def try_push(topic, message, click_url, **options):
+    """push_ntfy, returning an error message instead of raising: an ntfy outage mustn't
+    lose the alert or stop the run (value alerts then fall back to a GitHub comment)."""
+    try:
+        push_ntfy(topic, message, click_url, **options)
+    except requests.RequestException as exc:
+        return f"ntfy push failed ({exc})"
+    return None
+
+
 def handle(github, previous, current, *, owner, run_url, page_url, log_tail="", ntfy_topic=None, threshold=None, now=None):
     """Open, leave or close the data-problem issue, and send value alerts. Returns what was done."""
     done = []
@@ -90,17 +100,17 @@ def handle(github, previous, current, *, owner, run_url, page_url, log_tail="", 
         number = github.create_issue("Lottery data isn't updating", body, PROBLEM_LABEL)
         done.append(f"opened issue #{number}")
         if ntfy_topic:
-            push_ntfy(ntfy_topic, f"{found[0]} Details in issue #{number}.", github.issue_url(number),
-                      title="Lottery data isn't updating", tags="warning", priority="high")
-            done.append("pushed the problem")
+            failure = try_push(ntfy_topic, f"{found[0]} Details in issue #{number}.", github.issue_url(number),
+                               title="Lottery data isn't updating", tags="warning", priority="high")
+            done.append(failure or "pushed the problem")
     elif not found and open_number is not None:
         github.comment(open_number, f"Back to normal as of {stamp}: {run_url}")
         github.close(open_number)
         done.append(f"closed issue #{open_number}")
         if ntfy_topic:
-            push_ntfy(ntfy_topic, "The lottery data is updating again.", page_url,
-                      title="Back to normal", tags="white_check_mark", priority="low")
-            done.append("pushed the recovery")
+            failure = try_push(ntfy_topic, "The lottery data is updating again.", page_url,
+                               title="Back to normal", tags="white_check_mark", priority="low")
+            done.append(failure or "pushed the recovery")
     elif found:
         done.append("problem noted; alerting only if the next run also has it" if open_number is None
                     else f"problem continues; issue #{open_number} is already open")
@@ -108,16 +118,19 @@ def handle(github, previous, current, *, owner, run_url, page_url, log_tail="", 
     messages = alerts.value_alerts(previous, current, alerts.DEFAULT_VALUE_THRESHOLD if threshold is None else threshold)
     for message in messages:
         if ntfy_topic:
-            push_ntfy(ntfy_topic, message, page_url)
-            done.append("pushed a value alert")
-        else:
-            number = github.open_issue(VALUE_LABEL) or github.create_issue(
-                "Value alerts",
-                f"@{owner} alerts about which game is the better buy show up here as comments. Page: {page_url}",
-                VALUE_LABEL,
-            )
-            github.comment(number, f"@{owner} {message}\n\n{page_url}")
-            done.append(f"posted a value alert on issue #{number}")
+            failure = try_push(ntfy_topic, message, page_url)
+            if not failure:
+                done.append("pushed a value alert")
+                continue
+            done.append(failure)
+        # No ntfy, or it failed: comment on the value-alert issue, which emails the owner.
+        number = github.open_issue(VALUE_LABEL) or github.create_issue(
+            "Value alerts",
+            f"@{owner} alerts about which game is the better buy show up here as comments. Page: {page_url}",
+            VALUE_LABEL,
+        )
+        github.comment(number, f"@{owner} {message}\n\n{page_url}")
+        done.append(f"posted a value alert on issue #{number}")
     return done
 
 

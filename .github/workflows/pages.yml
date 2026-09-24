@@ -33,6 +33,11 @@ jobs:
           mkdir _site
           cp -r index.html web data _site/
           touch _site/.nojekyll
+          # Version the script and stylesheet by content, so a changed file is never served from cache.
+          for asset in web/app.js web/style.css; do
+            sed -i "s#${asset}?v=dev#${asset}?v=$(sha256sum "$asset" | cut -c1-10)#" _site/index.html
+          done
+          if grep -qE '(app\.js|style\.css)\?v=dev' _site/index.html; then echo "asset versioning failed"; exit 1; fi
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site

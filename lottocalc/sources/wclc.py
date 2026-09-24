@@ -213,6 +213,8 @@ def _series(table):
     if table is None:
         return 0, 0, None
     rows = _rows(table)
+    if any(len(cells) < 3 for cells in rows):
+        raise ParseError("MAXPLUS/MAXMILLIONS table no longer has numbers, winners and prize columns")
     won = sum(1 for cells in rows if _winner_count(cells[1]))
     prizes = [p for cells in rows if (p := money(text(cells[-1])))]
     return len(rows), won, max(prizes) if prizes else None

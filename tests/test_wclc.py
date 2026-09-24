@@ -95,6 +95,14 @@ def test_lotto_max_prize_tiers(page):
     assert (draw["tier_prizes"]["6/7+B"], draw["tier_prizes"]["4/7"], draw["tier_prizes"]["3/7"]) == (85036.2, 20, None)
 
 
+def test_changed_maxplus_table_layout_is_a_parse_error(page):
+    html = page("wclc_max_1272.html").replace(
+        '<td>$100,000.00</td>', "", 1  # drop the prize cell of the first MAXPLUS row
+    )
+    with pytest.raises(ParseError, match="MAXPLUS/MAXMILLIONS table"):
+        wclc.parse_prize_details(html, model.LOTTO_MAX, 1272)
+
+
 def test_breakdown_for_the_wrong_game_is_rejected(page):
     with pytest.raises(ParseError):
         wclc.parse_prize_details(page("wclc_max_1272.html"), model.LOTTO_649, 1272)
