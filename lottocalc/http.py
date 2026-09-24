@@ -8,7 +8,10 @@ from urllib.parse import urlsplit
 
 import requests
 
-USER_AGENT = "lotto-calculator/0.1 (personal non-commercial project; ~3 requests per draw)"
+USER_AGENT = (
+    "lotto-calculator/0.1 (personal non-commercial project; ~3 requests per draw; "
+    "+https://github.com/soyssauccee/lotto-calculator)"
+)
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 

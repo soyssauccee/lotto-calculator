@@ -17,7 +17,7 @@ Screen makes it an app).
 | M4 | Sales forecast model | done |
 | M5 | Value engine | done |
 | M6 | Phone web page | done |
-| M7 | Scheduled runs and alerts | next |
+| M7 | Scheduled runs and alerts | running; done after a week unattended |
 
 ## Setup
 
@@ -149,6 +149,29 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
 
 `.github/workflows/pages.yml` publishes `index.html`, `web/` and `data/` to GitHub Pages. To
 preview locally, run `.venv\Scripts\python -m http.server 8000` and open http://localhost:8000.
+
+## Automation and alerts
+
+`.github/workflows/scrape.yml` runs `scrape.py` on GitHub's servers, commits `data/`, and
+redeploys the page. Times are UTC in the file:
+
+- every morning at 7:17 AM Eastern
+- 5:17 PM Eastern on draw days (Tue, Wed, Fri, Sat), since jackpot estimates sometimes rise
+- about 1¾ and 4¼ hours after each 10:30 PM draw, while daylight time is in effect
+
+Afterwards, `alert.py` sends two kinds of alerts:
+
+- **Data problems.** Errors, a fallback to the backup source, or a crash. A crash opens a
+  `data-problem` issue straight away; other problems do once they last two runs in a row, so
+  one network blip doesn't send anything. GitHub emails the issue to the owner, and the issue
+  closes itself when a run comes back clean.
+- **Value alerts.** When the better buy flips between games, or when a draw is worth at least
+  `VALUE_ALERT_THRESHOLD` per $1 (a repository variable, $0.50 by default). Each draw alerts at
+  most once. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
+  they are posted as comments on a `value-alert` issue.
+
+The workflow commits to `main` several times a day, so run `git pull --rebase` before pushing
+local changes.
 
 ## Sources
 
