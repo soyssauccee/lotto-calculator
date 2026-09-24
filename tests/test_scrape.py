@@ -2,6 +2,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 import scrape
 from lottocalc import model, store
 from lottocalc.http import FetchError
@@ -60,7 +62,9 @@ def test_first_run_stores_the_latest_draws_and_the_next_draw():
     assert report.errors == []
     assert report.warnings == [
         "Lotto 6/49: history starts at draw 4450, not 4033",
+        "Lotto 6/49: too little history to forecast sales; run --backfill",
         "Lotto Max: history starts at draw 1270, not 1226",
+        "Lotto Max: too little history to forecast sales; run --backfill",
     ]
     assert numbers(draws, model.LOTTO_649) == [4450, 4451, 4452]
     assert numbers(draws, model.LOTTO_MAX) == [1270, 1271, 1272]
@@ -78,6 +82,7 @@ def test_first_run_stores_the_latest_draws_and_the_next_draw():
         "gold_ball_amount": 10_000_000,
         "balls_remaining": 30,
         "source": "wclc",
+        "forecast": None,
         "as_of": STAMP,
     }
     assert next_doc[model.LOTTO_MAX] == {
@@ -88,9 +93,22 @@ def test_first_run_stores_the_latest_draws_and_the_next_draw():
         "maxplus_count": 60,
         "maxplus_prize": 100_000,
         "source": "wclc",
+        "forecast": None,
         "as_of": STAMP,
     }
     assert (next_doc["errors"], next_doc["warnings"]) == (report.errors, report.warnings)
+
+
+def test_next_draw_forecasts_come_from_the_stored_history():
+    draws = store.load_draws(FIXTURES / "draws_history.json")  # every draw through 6/49 #4452 and Max #1272
+    next_doc, report = scrape.update(FakeSession(LISTINGS), draws, None, NOW)
+
+    assert (report.errors, report.warnings) == ([], [])
+    lotto649, lottomax = next_doc[model.LOTTO_649]["forecast"], next_doc[model.LOTTO_MAX]["forecast"]
+    assert lotto649["plays"] == pytest.approx(3_745_427, rel=1e-6)  # #4453 actually sold 3,651,921
+    assert lotto649["low"] < 3_651_921 < lotto649["high"]
+    assert lottomax["low"] < lottomax["plays"] < lottomax["high"]
+    json.dumps(next_doc)  # plain JSON types only
 
 
 def test_backfill_fetches_everything_from_the_format_start(monkeypatch):
@@ -104,7 +122,8 @@ def test_backfill_fetches_everything_from_the_format_start(monkeypatch):
         FakeSession(LISTINGS | DETAILS), draws, None, NOW, backfill=True, checkpoint=lambda d: saved.append(len(d)),
     )
 
-    assert (report.errors, report.warnings) == ([], [])
+    assert report.errors == []
+    assert all("forecast" in w for w in report.warnings)  # 7 and 3 draws are too few to forecast from
     assert numbers(draws, model.LOTTO_649) == list(range(4446, 4453))
     assert numbers(draws, model.LOTTO_MAX) == [1270, 1271, 1272]
     assert saved == [5, 9]  # after the 4th and 8th new draw

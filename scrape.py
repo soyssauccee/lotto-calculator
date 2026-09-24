@@ -15,7 +15,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from lottocalc import model, sales, store
+from lottocalc import forecast, model, sales, store
 from lottocalc.http import FetchError, PoliteSession
 from lottocalc.sources import ParseError, lotterycanada, wclc
 
@@ -102,6 +102,10 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         report.warnings += warnings
         if game == model.LOTTO_649:
             report.warnings += model.derive_gold_ball(records, info)
+        if info["draw_number"] and not errors:
+            info["forecast"] = forecast.forecast_next(game, records, info)
+            if info["forecast"] is None:
+                report.warnings.append(f"{model.GAME_NAMES[game]}: too little history to forecast sales; run --backfill")
         next_doc[game] = dict(info, as_of=stamp)
     next_doc["errors"] = report.errors
     next_doc["warnings"] = report.warnings
@@ -165,17 +169,23 @@ def summarize(next_doc, report, requests_made):
         return f"[{info.get('source')}{', STALE' if info.get('stale') else ''}]"
 
     lines = []
+    def sales_forecast(info):
+        result = info.get("forecast")
+        if not result:
+            return ""
+        return f"; forecast {result['plays'] / 1e6:.2f}M plays ({result['low'] / 1e6:.2f}M-{result['high'] / 1e6:.2f}M)"
+
     info = next_doc.get(model.LOTTO_649)
     if info:
         lines.append(
             f"Lotto 6/49  next {info['draw_date']} (#{info['draw_number']}): Gold Ball "
-            f"{dollars(info['gold_ball_amount'])} with {info['balls_remaining']} balls  {origin(info)}"
+            f"{dollars(info['gold_ball_amount'])} with {info['balls_remaining']} balls{sales_forecast(info)}  {origin(info)}"
         )
     info = next_doc.get(model.LOTTO_MAX)
     if info:
         lines.append(
             f"Lotto Max   next {info['draw_date']} (#{info['draw_number']}): jackpot {dollars(info['jackpot'])}, "
-            f"{info['maxmillions_count']} MAXMILLIONS, {info['maxplus_count']} MAXPLUS  {origin(info)}"
+            f"{info['maxmillions_count']} MAXMILLIONS, {info['maxplus_count']} MAXPLUS{sales_forecast(info)}  {origin(info)}"
         )
     for game in model.GAMES:
         added = sorted(n for g, n, _ in report.added if g == game)

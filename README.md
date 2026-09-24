@@ -11,8 +11,8 @@ based on real jackpots, real sales and real odds.
 | M1 | Scraper and data model | done |
 | M2 | Backfill history (6/49 from #4033, Lotto Max 7/52 from #1226) | done |
 | M3 | Sales estimator (exact, from the Pools Fund) | done |
-| M4 | Sales forecast model | next |
-| M5 | Value engine | |
+| M4 | Sales forecast model | done |
+| M5 | Value engine | next |
 | M6 | Phone web page | |
 | M7 | Scheduled runs and alerts | |
 
@@ -29,6 +29,7 @@ py -3.13 -m venv .venv
 .venv\Scripts\python scrape.py             # fetch next-draw info and any new draws
 .venv\Scripts\python scrape.py --backfill  # also fetch every draw of the current formats (~15 min)
 .venv\Scripts\python scrape.py --dry-run   # fetch and report, write nothing
+.venv\Scripts\python forecast.py           # backtest the sales forecasts, show next-draw forecasts
 .venv\Scripts\python -m pytest             # offline tests against saved pages
 ```
 
@@ -45,6 +46,7 @@ then keep their last good values and `next.json` lists the errors.
 | `jackpot` | 6/49: the fixed $5M Classic jackpot; Lotto Max: the main jackpot |
 | `gold_ball_amount`, `balls_remaining` | 6/49 Gold Ball jackpot and balls in the drum (odds of gold = 1/balls) |
 | `maxmillions_count`, `maxplus_count`, `maxplus_prize` | Lotto Max extra prizes |
+| `forecast` | predicted `plays` with an 80% range (`low`–`high`), and the model's backtest error |
 | `source`, `as_of` | where and when it was read; `stale: true` if every source failed |
 
 Top-level `errors` and `warnings` list what went wrong in the last run.
@@ -70,6 +72,30 @@ players favour certain numbers, so it only raises a warning when it is far off.
 Past 6/49 draws don't show their Gold Ball jackpot. It is derived: each gold-ball win's prize
 anchors a chain, each white ball adds $2M, and a gold ball resets to $10M with 30 balls. Any
 disagreement shows up as a warning.
+
+## Sales forecast
+
+`lottocalc/forecast.py` predicts plays for the next draw. For each game, log(plays) is
+fitted on what is known before the draw:
+
+- 6/49: the Gold Ball jackpot and its square, 1/balls, whether the jackpot is guaranteed
+  (1 ball left), Saturday, Super Draw prize money, the Dec 15–Jan 1 holidays, a slow trend
+  (about −4.5% a year), and a launch dummy for the format's first week.
+- Lotto Max: the jackpot and its square, and Friday.
+
+The fit is then nudged by 0.7 × the average miss on the last 4 draws, because sales drift
+in runs.
+
+Walk-forward backtest, where each draw is predicted only from the draws before it:
+
+| | Draws | Avg error | Median | Within ±15% | 80% range held |
+|---|---|---|---|---|---|
+| Lotto 6/49 | 321 | 2.8% | 2.1% | 98.8% | 82% |
+| Lotto Max | 31 | 2.2% | 1.7% | 100% | 91% |
+
+6/49 errors are larger on special draws (5.0% with ≤5 balls, a Super Draw or the holidays,
+vs 2.3% otherwise), so those draws get their own, wider range. Upcoming Super Draws are not
+announced anywhere this project can read, so forecasts assume a normal draw.
 
 ## Sources
 
