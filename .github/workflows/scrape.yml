@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned: unattended jobs shouldn't change OS under us
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
