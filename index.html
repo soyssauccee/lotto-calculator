@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lotto Calculator</title>
+  <meta name="description" content="Lotto 6/49 or Lotto Max: which is the better buy for the next draw, from real jackpots, sales and odds.">
+  <meta name="theme-color" content="#f4f6fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Lotto Calc">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="web/manifest.webmanifest">
+  <link rel="icon" href="web/icon-192.png">
+  <link rel="apple-touch-icon" href="web/icon-180.png">
+  <link rel="stylesheet" href="web/style.css">
+  <script src="web/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header class="top">
+      <div>
+        <p class="title">Lotto Calculator</p>
+        <p class="subtitle">Lotto 6/49 vs Lotto Max</p>
+      </div>
+      <button id="refresh" class="updated" type="button" aria-label="Refresh data">Loading…</button>
+    </header>
+
+    <div id="notices"></div>
+
+    <section id="verdict" class="card verdict" aria-live="polite">
+      <p class="eyebrow">Better buy for the next draw</p>
+      <p class="loading">Loading the latest jackpots…</p>
+    </section>
+
+    <div id="basis" class="segmented" role="group" aria-label="Prizes to count">
+      <button type="button" data-basis="top_prizes">Big prizes</button>
+      <button type="button" data-basis="all_prizes">All prizes</button>
+    </div>
+
+    <div id="games"></div>
+
+    <section class="card">
+      <h2>Value per $1 at each draw</h2>
+      <p class="muted small">Big prizes only, with the plays each draw actually sold. Hollow dots are the next draws.</p>
+      <div id="chart" class="chart"></div>
+      <p id="readout" class="readout muted small">Tap the chart for a draw's details.</p>
+    </section>
+
+    <footer>
+      <p>Values are expected winnings per $1 spent. Under $1 means a ticket pays back less than it costs, on average.</p>
+      <p>Data: prize breakdowns from <a href="https://www.wclc.com">WCLC</a>. Sales are worked out from the published prizes, and the next draw's sales are forecast. Not affiliated with OLG.</p>
+      <p><a href="https://github.com/">How it works</a></p>
+    </footer>
+    <noscript><p class="notice error">This page needs JavaScript to show the numbers.</p></noscript>
+  </main>
+</body>
+</html>
