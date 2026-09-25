@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Lotto Calculator</title>
   <meta name="description" content="Lotto 6/49 or Lotto Max: which is the better buy for the next draw, from real jackpots, sales and odds.">
-  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Lotto Calc">
@@ -13,16 +13,17 @@
   <link rel="manifest" href="web/manifest.webmanifest">
   <link rel="icon" href="web/icon-192.png">
   <link rel="apple-touch-icon" href="web/icon-180.png">
+  <!-- Apple devices use their own system font; Geist stands in elsewhere -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
   <!-- ?v=dev becomes a hash of the file when deployed, so phones fetch new versions at once -->
   <link rel="stylesheet" href="web/style.css?v=dev">
   <script src="web/app.js?v=dev" defer></script>
 </head>
 <body>
-  <main>
-    <header class="appbar">
+  <header id="appbar" class="appbar">
+    <div class="appbar-inner">
       <div class="brand">
         <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
           <circle class="mark-max" cx="19.5" cy="12.5" r="8.5"/>
@@ -33,38 +34,46 @@
       <button id="refresh" class="status" type="button" aria-label="Refresh data">
         <span class="status-dot"></span><span class="status-text">Loading</span>
       </button>
-    </header>
+    </div>
+  </header>
 
+  <main>
     <div id="notices"></div>
 
     <section id="verdict" class="hero" aria-live="polite">
-      <p class="eyebrow">Recommendation</p>
+      <div class="skeleton skeleton-eyebrow"></div>
       <div class="skeleton skeleton-title"></div>
       <div class="skeleton skeleton-line"></div>
-      <div class="skeleton skeleton-tile"></div>
     </section>
 
-    <div id="basis" class="segmented" role="group" aria-label="Prizes to count">
-      <button type="button" data-basis="top_prizes">Big prizes</button>
-      <button type="button" data-basis="all_prizes">All prizes</button>
-    </div>
+    <section class="chapter compare">
+      <div id="compare"></div>
+      <div id="basis" class="segmented" role="group" aria-label="Prizes to count">
+        <button type="button" data-basis="top_prizes">Big prizes</button>
+        <button type="button" data-basis="all_prizes">All prizes</button>
+      </div>
+    </section>
 
-    <h2 class="section-label">Next draws</h2>
     <div id="games"></div>
 
-    <h2 class="section-label">History</h2>
-    <section class="chart-card">
-      <h3>Value per $1 in big prizes</h3>
-      <p class="caption">Jackpots, the Gold Ball draw, MAXPLUS and MAXMILLIONS, with the plays each draw actually sold. Hollow dots are the next draws; above the dashed line is worth playing.</p>
-      <div id="chart" class="chart"></div>
-      <p id="readout" class="readout">Tap the chart for a draw's details.</p>
-    </section>
+    <section class="chapter history">
+      <p class="eyebrow reveal">History</p>
+      <h2 class="chapter-title reveal">Draw by draw.</h2>
+      <p class="chapter-sub reveal">What $1 of each ticket was worth at every recent draw, from the plays each draw actually sold.</p>
 
-    <section class="chart-card">
-      <h3>Value per $1 for the whole ticket</h3>
-      <p class="caption">Every prize counted: the big prizes plus the smaller ones (free plays, $5 to $20 prizes and shared pools). Hollow dots are the next draws.</p>
-      <div id="chart-all" class="chart"></div>
-      <p id="readout-all" class="readout">Tap the chart for a draw's details.</p>
+      <div class="tile chart-card reveal">
+        <h3>Big prizes</h3>
+        <p class="caption">Jackpots, the Gold Ball draw, MAXPLUS and MAXMILLIONS. Hollow dots are the next draws; above the dashed line is worth playing.</p>
+        <div id="chart" class="chart"></div>
+        <p id="readout" class="readout">Tap the chart for a draw's details.</p>
+      </div>
+
+      <div class="tile chart-card reveal">
+        <h3>The whole ticket</h3>
+        <p class="caption">Every prize counted: the big prizes plus the smaller ones (free plays, $5 to $20 prizes and shared pools). Hollow dots are the next draws.</p>
+        <div id="chart-all" class="chart"></div>
+        <p id="readout-all" class="readout">Tap the chart for a draw's details.</p>
+      </div>
     </section>
 
     <footer class="footer">
