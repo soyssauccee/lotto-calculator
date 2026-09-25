@@ -22,8 +22,8 @@
   <script src="web/app.js?v=dev" defer></script>
 </head>
 <body>
-  <header id="appbar" class="appbar">
-    <div class="appbar-inner">
+  <main>
+    <header class="appbar">
       <div class="brand">
         <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
           <circle class="mark-max" cx="19.5" cy="12.5" r="8.5"/>
@@ -34,52 +34,34 @@
       <button id="refresh" class="status" type="button" aria-label="Refresh data">
         <span class="status-dot"></span><span class="status-text">Loading</span>
       </button>
-    </div>
-  </header>
+    </header>
 
-  <main>
     <div id="notices"></div>
 
-    <section id="verdict" class="hero" aria-live="polite">
-      <div class="skeleton skeleton-eyebrow"></div>
-      <div class="skeleton skeleton-title"></div>
-      <div class="skeleton skeleton-line"></div>
-    </section>
-
-    <section class="chapter compare">
-      <div id="compare"></div>
+    <div class="verdict-row">
+      <section id="verdict" class="verdict" aria-live="polite">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-line"></div>
+      </section>
       <div id="basis" class="segmented" role="group" aria-label="Prizes to count">
-        <button type="button" data-basis="top_prizes">Big prizes</button>
-        <button type="button" data-basis="all_prizes">All prizes</button>
+        <button type="button" data-basis="top_prizes">Big</button>
+        <button type="button" data-basis="all_prizes">All</button>
       </div>
+    </div>
+
+    <section id="table" class="panel">
+      <div class="skeleton skeleton-block"></div>
     </section>
 
-    <div id="games"></div>
-
-    <section class="chapter history">
-      <p class="eyebrow reveal">History</p>
-      <h2 class="chapter-title reveal">Draw by draw.</h2>
-      <p class="chapter-sub reveal">What $1 of each ticket was worth at every recent draw, from the plays each draw actually sold.</p>
-
-      <div class="tile chart-card reveal">
-        <h3>Big prizes</h3>
-        <p class="caption">Jackpots, the Gold Ball draw, MAXPLUS and MAXMILLIONS. Hollow dots are the next draws; above the dashed line is worth playing.</p>
-        <div id="chart" class="chart"></div>
-        <p id="readout" class="readout">Tap the chart for a draw's details.</p>
-      </div>
-
-      <div class="tile chart-card reveal">
-        <h3>The whole ticket</h3>
-        <p class="caption">Every prize counted: the big prizes plus the smaller ones (free plays, $5 to $20 prizes and shared pools). Hollow dots are the next draws.</p>
-        <div id="chart-all" class="chart"></div>
-        <p id="readout-all" class="readout">Tap the chart for a draw's details.</p>
-      </div>
+    <section class="panel chart-panel">
+      <div id="chart" class="chart"></div>
+      <p id="readout" class="readout"></p>
     </section>
 
     <footer class="footer">
-      <p>Values are expected winnings per $1 spent. Under $1 means a ticket pays back less than it costs, on average.</p>
-      <p>Prize breakdowns from <a href="https://www.wclc.com">WCLC</a>. Sales are worked out from the published prizes, and the next draw's sales are forecast. Not affiliated with OLG.</p>
-      <p><a href="https://github.com/soyssauccee/lotto-calculator#readme">Methodology</a></p>
+      <p>Value is the expected winnings per $1 spent: "Big" counts the jackpots, Gold Ball, MAXPLUS and MAXMILLIONS; "All" adds every smaller prize. Odds are for $6 of plays; plays sold is the forecast for the next draw. Under $1 means a ticket pays back less than it costs, on average. The chart's dashed line is the $0.30 minimum worth playing.</p>
+      <p id="assumption" hidden>Forecasts assume a regular draw: Super Draws aren't announced where this page can read them.</p>
+      <p>Prize breakdowns from <a href="https://www.wclc.com">WCLC</a>; sales are worked out from the published prizes and forecast for the next draw. Not affiliated with OLG. <a href="https://github.com/soyssauccee/lotto-calculator#readme">Methodology</a></p>
     </footer>
     <noscript><p class="notice error">This page needs JavaScript to show the numbers.</p></noscript>
   </main>
