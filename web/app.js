@@ -23,6 +23,7 @@ const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
 const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const DEFAULT_MINIMUM = 0.3; // matches MIN_WORTH_PLAYING in lottocalc/value.py
+const WHOLE_TICKET_MINIMUM = 0.45; // the dashed line on the whole-ticket chart
 const GOLD_BALL_STEP = 2e6; // each white ball adds $2M (GOLD_BALL_STEP in lottocalc/model.py)
 const DRAW_DAYS = { lotto649: [3, 6], lottomax: [2, 5] }; // Wed/Sat, Tue/Fri
 
@@ -308,10 +309,11 @@ function gameHtml(game, info, basis) {
 // ---------- charts ----------
 
 // What a ticket was worth per $1 at each draw: in big prizes (with the play minimum), and
-// counting every prize. `draw` and `next` name the value fields in draws.json and next.json.
+// counting every prize (with its own minimum). `draw` and `next` name the value fields in
+// draws.json and next.json; a chart without `minimum` uses the play minimum in next.json.
 const CHARTS = [
   { el: "chart", readout: "readout", draw: "value_per_dollar", next: "per_dollar", allPrizes: false },
-  { el: "chart-all", readout: "readout-all", draw: "value_per_dollar_all_prizes", next: "per_dollar_all_prizes", allPrizes: true },
+  { el: "chart-all", readout: "readout-all", draw: "value_per_dollar_all_prizes", next: "per_dollar_all_prizes", allPrizes: true, minimum: WHOLE_TICKET_MINIMUM },
 ];
 
 function chartSeries(draws, next, chart) {
@@ -345,7 +347,7 @@ function renderChart(chart, draws, next) {
   const t0 = Math.min(...all.map((p) => p.t));
   const t1 = Math.max(...all.map((p) => p.t));
   const step = 0.1;
-  const minimum = chart.allPrizes ? null : minimumToPlay(next); // the minimum is judged on big prizes
+  const minimum = chart.minimum ?? minimumToPlay(next);
   const vMax = Math.max(step * 2, Math.ceil((Math.max(minimum ?? 0, ...all.map((p) => p.v)) * 1.05) / step) * step);
   const x = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);
   const y = (v) => T + (1 - v / vMax) * (H - T - B);
