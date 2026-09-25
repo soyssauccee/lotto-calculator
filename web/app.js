@@ -279,7 +279,7 @@ function gameHtml(game, info, basis) {
   const plays6 = 6 / value.price;
   const odds = value.odds_one_in;
   const perPlay = (n) => (plays6 > 1 ? `${oneIn(n)} per $${value.price} play` : `One $${value.price} play`);
-  const row = (label, main, detail) => `<li><span>${label}<small>${detail}</small></span><b>${main}</b></li>`;
+  const row = (label, main, detail) => `<li><span>${label}</span><b>${main}</b><small>${detail}</small></li>`;
   const notes = [];
   if (forecast.assumes_no_super_draw) notes.push("Assumes a regular draw: Super Draws aren't announced where this page can read them.");
 
@@ -343,7 +343,11 @@ function renderChart(chart, draws, next) {
     el.innerHTML = `<p class="caption">No history yet.</p>`;
     return;
   }
-  const W = 360, H = 210, L = 36, R = 6, T = 8, B = 22; // about 1 unit per CSS pixel on a phone
+  // Drawn at the chart's own width, one unit per CSS pixel, so labels keep their size in a
+  // narrow column.
+  const W = Math.max(150, Math.round(el.clientWidth || 360));
+  const H = Math.round(Math.min(240, Math.max(150, W * 0.62)));
+  const L = 34, R = 6, T = 8, B = 22;
   const t0 = Math.min(...all.map((p) => p.t));
   const t1 = Math.max(...all.map((p) => p.t));
   const step = 0.1;
@@ -360,7 +364,11 @@ function renderChart(chart, draws, next) {
   }
   const months = [];
   const start = new Date(t0);
+  const monthCount = Math.max(1, Math.round((t1 - t0) / (30.4 * 864e5)));
+  const everyOther = (W - L - R) / monthCount < 30; // too narrow for every month's name
+  let index = 0;
   for (let d = new Date(start.getFullYear(), start.getMonth() + 1, 1); d.getTime() <= t1; d.setMonth(d.getMonth() + 1)) {
+    if (everyOther && index++ % 2) continue;
     months.push(`<text class="axis" x="${x(d.getTime())}" y="${H - 6}" text-anchor="middle">${d.toLocaleDateString("en-CA", { month: "short" })}</text>`);
   }
 
@@ -531,6 +539,18 @@ document.getElementById("basis").addEventListener("click", (event) => {
   show(false);
 });
 document.getElementById("refresh").addEventListener("click", load);
+// The charts are drawn to their width, so redraw them when it changes (rotating a phone).
+let chartWidth = 0;
+let resizeTimer = 0;
+addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const width = document.getElementById("chart")?.clientWidth;
+    if (!state.next || !width || width === chartWidth) return;
+    chartWidth = width;
+    for (const chart of CHARTS) renderChart(chart, state.draws, state.next);
+  }, 150);
+});
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && (state.failed || Date.now() - state.loadedAt > REFRESH_AFTER_MS)) load();
 });
