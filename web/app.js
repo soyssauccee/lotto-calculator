@@ -24,7 +24,7 @@ const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const DEFAULT_MINIMUM = 0.3; // matches MIN_WORTH_PLAYING in lottocalc/value.py
 
-const state = { next: null, draws: [], basis: readBasis(), loadedAt: 0, loading: false };
+const state = { next: null, draws: [], basis: readBasis(), loadedAt: 0, loading: false, failed: false };
 
 function readBasis() {
   try {
@@ -455,8 +455,9 @@ async function load() {
   setStatus("Updating", "busy");
   try {
     const [next, draws] = await Promise.all([fetchJson("data/next.json"), fetchJson("data/draws.json")]);
-    Object.assign(state, { next, draws: draws.draws, loadedAt: Date.now() });
+    Object.assign(state, { next, draws: draws.draws, loadedAt: Date.now(), failed: false });
   } catch (error) {
+    state.failed = true;
     showProblem(`Couldn't load the data (${error.message}). Tap Retry, or try again in a few minutes.`);
     setStatus("Retry", "error");
     return;
@@ -475,12 +476,13 @@ document.getElementById("basis").addEventListener("click", (event) => {
 });
 document.getElementById("refresh").addEventListener("click", load);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && Date.now() - state.loadedAt > REFRESH_AFTER_MS) load();
+  if (document.visibilityState === "visible" && (state.failed || Date.now() - state.loadedAt > REFRESH_AFTER_MS)) load();
 });
-// A page left open (say on a desktop) keeps its age label current and picks up new data.
+// A page left open (say on a desktop) keeps its age label current, picks up new data, and
+// retries a failed load rather than leaving "Retry" up.
 setInterval(() => {
-  if (document.visibilityState !== "visible" || !state.next || state.loading) return;
-  if (Date.now() - state.loadedAt > RELOAD_OPEN_MS) load();
-  else showUpdated(state.next);
+  if (document.visibilityState !== "visible" || state.loading) return;
+  if (state.failed || Date.now() - state.loadedAt > RELOAD_OPEN_MS) load();
+  else if (state.next) showUpdated(state.next);
 }, TICK_MS);
 load();
