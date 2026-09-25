@@ -18,7 +18,9 @@ const PARTS = {
 const STALE_HOURS = 30; // runs happen after every draw and each morning
 const CHART_WEEKS = 26;
 const CHART_FROM = "2026-04-14"; // Lotto Max's current format started then
-const REFRESH_AFTER_MS = 5 * 60 * 1000;
+const REFRESH_AFTER_MS = 5 * 60 * 1000; // when the page comes back into view
+const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
+const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const DEFAULT_MINIMUM = 0.3; // matches MIN_WORTH_PLAYING in lottocalc/value.py
 
@@ -404,13 +406,18 @@ function setStatus(text, kind) {
   const button = document.getElementById("refresh");
   button.className = `status is-${kind}`;
   button.querySelector(".status-text").textContent = text;
+  button.setAttribute("aria-label", `${text}. Tap to refresh`);
+}
+
+function showUpdated(next) {
+  const hoursOld = (Date.now() - Date.parse(next.scraped_at)) / 36e5;
+  const health = next.errors && next.errors.length ? "error" : hoursOld > STALE_HOURS ? "stale" : "ok";
+  setStatus(`Updated ${agoText(next.scraped_at)}`, health);
 }
 
 function render() {
   const { next, basis } = state;
-  const hoursOld = (Date.now() - Date.parse(next.scraped_at)) / 36e5;
-  const health = next.errors && next.errors.length ? "error" : hoursOld > STALE_HOURS ? "stale" : "ok";
-  setStatus(`Updated ${agoText(next.scraped_at)}`, health);
+  showUpdated(next);
   document.getElementById("notices").innerHTML = noticesHtml(next);
   document.getElementById("verdict").innerHTML = verdictHtml(next, basis);
   const rec = next.recommendation && next.recommendation[basis];
@@ -470,4 +477,10 @@ document.getElementById("refresh").addEventListener("click", load);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && Date.now() - state.loadedAt > REFRESH_AFTER_MS) load();
 });
+// A page left open (say on a desktop) keeps its age label current and picks up new data.
+setInterval(() => {
+  if (document.visibilityState !== "visible" || !state.next || state.loading) return;
+  if (Date.now() - state.loadedAt > RELOAD_OPEN_MS) load();
+  else showUpdated(state.next);
+}, TICK_MS);
 load();

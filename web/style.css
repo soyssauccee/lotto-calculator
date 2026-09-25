@@ -1,5 +1,5 @@
 /* Warm cream in light mode, true black in dark mode, a soft accent per game (sage for
-   Lotto Max, sand for Lotto 6/49). The system font on Apple devices, Geist elsewhere. */
+   Lotto Max, sand for Lotto 6/49), in each device's own system font. */
 :root {
   --bg: #f5f1e8;
   --card: #fcfaf5;
@@ -20,7 +20,7 @@
   --error-text: #9a3526;
   --card-edge: rgba(40, 32, 20, 0.06);
   --card-shadow: 0 1px 2px rgba(60, 45, 20, 0.04), 0 6px 22px rgba(60, 45, 20, 0.05);
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Geist", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color-scheme: light;
 }
 

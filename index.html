@@ -13,10 +13,6 @@
   <link rel="manifest" href="web/manifest.webmanifest">
   <link rel="icon" href="web/icon-192.png">
   <link rel="apple-touch-icon" href="web/icon-180.png">
-  <!-- Apple devices use their own system font; Geist stands in elsewhere -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
   <!-- ?v=dev becomes a hash of the file when deployed, so phones fetch new versions at once -->
   <link rel="stylesheet" href="web/style.css?v=dev">
   <script src="web/app.js?v=dev" defer></script>
@@ -31,7 +27,7 @@
         </svg>
         <p class="brand-name">Lotto Calculator</p>
       </div>
-      <button id="refresh" class="status" type="button" aria-label="Refresh data">
+      <button id="refresh" class="status" type="button" aria-label="Loading. Tap to refresh">
         <span class="status-dot"></span><span class="status-text">Loading</span>
       </button>
     </header>
