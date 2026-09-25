@@ -13,6 +13,11 @@
   --invert-text: #f5f1e8;
   --max: #4d7d6b;
   --g649: #a9693a;
+  /* chart lines: each game's shade above and below the minimum */
+  --max-hi: #1d8a5a;
+  --max-lo: #a3bcb1;
+  --g649-hi: #cc5f0e;
+  --g649-lo: #d2b594;
   --ok: #3f9a66;
   --warn: #c48a2c;
   --danger: #c0513f;
@@ -38,6 +43,10 @@
     --invert-text: #000000;
     --max: #a9cbbc;
     --g649: #e2c393;
+    --max-hi: #7ee2b0;
+    --max-lo: #56695f;
+    --g649-hi: #f7b04b;
+    --g649-lo: #7a6852;
     --ok: #7dc79a;
     --warn: #e2b264;
     --danger: #ec8a7c;
@@ -228,18 +237,28 @@ button { -webkit-tap-highlight-color: transparent; }
 .chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
 .chart .grid { stroke: var(--rule); stroke-width: 1; }
 .chart .axis { fill: var(--text-3); font-size: 9.5px; font-family: var(--font); }
-.chart .max { stroke: var(--max); fill: var(--max); }
-.chart .g649 { stroke: var(--g649); fill: var(--g649); }
-.chart polyline.line { fill: none; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
-.chart circle.next { fill: var(--card); stroke-width: 1.7; }
+.chart .max.hi { stroke: var(--max-hi); fill: var(--max-hi); }
+.chart .max.lo { stroke: var(--max-lo); fill: var(--max-lo); }
+.chart .g649.hi { stroke: var(--g649-hi); fill: var(--g649-hi); }
+.chart .g649.lo { stroke: var(--g649-lo); fill: var(--g649-lo); }
+.chart polyline.line,
+.chart .line.hi,
+.chart .line.lo { fill: none; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; } /* after the shade rules' fill */
+
+.chart circle.next.hi,
+.chart circle.next.lo { fill: var(--card); stroke-width: 1.7; }
 .chart circle.focus { fill: none; stroke: var(--text); stroke-width: 1; }
 .chart .minline { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 4px 0; font-size: 12px; color: var(--text-2); }
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.chart-legend span::before { content: ""; width: 14px; height: 2px; border-radius: 2px; background: var(--text-3); }
-.chart-legend .key-max::before { background: var(--max); }
-.chart-legend .key-g649::before { background: var(--g649); }
-.chart-legend .key-min::before { height: 0; background: none; border-top: 1px dashed var(--text-3); }
+.chart-legend i { width: 10px; height: 3px; border-radius: 2px; margin-right: -3px; }
+.chart-legend i:nth-of-type(2) { margin-right: 2px; }
+.chart-legend .key-max .hi { background: var(--max-hi); }
+.chart-legend .key-max .lo { background: var(--max-lo); }
+.chart-legend .key-g649 .hi { background: var(--g649-hi); }
+.chart-legend .key-g649 .lo { background: var(--g649-lo); }
+.chart-legend .key-min::before { content: ""; width: 14px; border-top: 1px dashed var(--text-3); }
+.chart-key-note { margin: 4px 4px 0; font-size: 11.5px; color: var(--text-3); }
 .readout { min-height: 2.9em; margin-top: 10px; font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
 
 /* Footer */

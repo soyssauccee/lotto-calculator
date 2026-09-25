@@ -364,20 +364,34 @@ function renderChart(chart, draws, next) {
     months.push(`<text class="axis" x="${x(d.getTime())}" y="${H - 6}" text-anchor="middle">${d.toLocaleDateString("en-CA", { month: "short" })}</text>`);
   }
 
+  // Each game's line is drawn twice, clipped at the minimum: its bright shade above the line,
+  // its faded shade below, so the colour changes exactly where the line crosses. Dots take
+  // the shade of their own side.
+  const clipAbove = `${chart.el}-above`;
+  const clipBelow = `${chart.el}-below`;
+  const yMin = y(minimum);
+  const side = (v) => (v >= minimum ? "hi" : "lo");
+  const both = (shape) =>
+    `${shape.replace("SIDE", "hi").replace("CLIP", clipAbove)}${shape.replace("SIDE", "lo").replace("CLIP", clipBelow)}`;
   const shapes = series
     .map((s) => {
       const css = GAMES[s.game].css;
       const line = s.points.map((p) => `${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
-      const dots = s.points.map((p) => `<circle class="${css}" cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="2"/>`).join("");
+      const dots = s.points.map((p) => `<circle class="${css} ${side(p.v)}" cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="2"/>`).join("");
       let upcoming = "";
       if (s.next) {
         const last = s.points[s.points.length - 1];
-        if (last) upcoming += `<line class="${css}" x1="${x(last.t)}" y1="${y(last.v)}" x2="${x(s.next.t)}" y2="${y(s.next.v)}" stroke-dasharray="3 3" stroke-width="1.2"/>`;
-        upcoming += `<circle class="${css} next" cx="${x(s.next.t)}" cy="${y(s.next.v)}" r="3.8"/>`;
+        if (last) upcoming += both(`<line class="${css} SIDE" clip-path="url(#CLIP)" x1="${x(last.t)}" y1="${y(last.v)}" x2="${x(s.next.t)}" y2="${y(s.next.v)}" stroke-dasharray="3 3" stroke-width="1.2"/>`);
+        upcoming += `<circle class="${css} ${side(s.next.v)} next" cx="${x(s.next.t)}" cy="${y(s.next.v)}" r="3.8"/>`;
       }
-      return `<polyline class="line ${css}" points="${line}" fill="none"/>${dots}${upcoming}`;
+      return `${both(`<polyline class="line ${css} SIDE" clip-path="url(#CLIP)" points="${line}" fill="none"/>`)}${dots}${upcoming}`;
     })
     .join("");
+  const clips = `
+    <defs>
+      <clipPath id="${clipAbove}"><rect x="0" y="0" width="${W}" height="${yMin}"/></clipPath>
+      <clipPath id="${clipBelow}"><rect x="0" y="${yMin}" width="${W}" height="${H - yMin}"/></clipPath>
+    </defs>`;
 
   const minimumLine = minimum == null ? "" : `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
   const minimumKey = minimum == null ? "" : `<span class="key-min">${perDollar(minimum)} minimum</span>`;
@@ -385,10 +399,11 @@ function renderChart(chart, draws, next) {
 
   el.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Value per dollar ${described} of each game's recent draws">
-      ${grid.join("")}${months.join("")}${minimumLine}${shapes}
+      ${clips}${grid.join("")}${months.join("")}${minimumLine}${shapes}
       <circle class="focus" r="6" cx="-20" cy="-20"/>
     </svg>
-    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="key-${GAMES[g].css}">${GAMES[g].name}</span>`).join("")}${minimumKey}</div>`;
+    <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="key-${GAMES[g].css}"><i class="hi"></i><i class="lo"></i>${GAMES[g].name}</span>`).join("")}${minimumKey}</div>
+    <p class="chart-key-note">Bright above the minimum, faded below it.</p>`;
 
   const svg = el.querySelector("svg");
   const focus = el.querySelector(".focus");
@@ -408,7 +423,8 @@ function renderChart(chart, draws, next) {
     if (!best) return;
     focus.setAttribute("cx", x(best.t));
     focus.setAttribute("cy", y(best.v));
-    readout.textContent = readoutText(best, chart);
+    const where = best.v >= minimum ? "above" : "below";
+    readout.textContent = `${readoutText(best, chart)} That's ${where} the ${perDollar(minimum)} minimum.`;
   };
   svg.addEventListener("pointerdown", pick);
   svg.addEventListener("pointermove", (event) => {
