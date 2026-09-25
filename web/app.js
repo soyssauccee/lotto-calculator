@@ -23,7 +23,7 @@ const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
 const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const DEFAULT_MINIMUM = 0.3; // matches MIN_WORTH_PLAYING in lottocalc/value.py
-const WHOLE_TICKET_MINIMUM = 0.45; // the whole-ticket guide: the dashed line on its chart and bars
+const WHOLE_TICKET_MINIMUM = 0.5; // the whole-ticket guide: the dashed line on its chart and bars
 const GOLD_BALL_STEP = 2e6; // each white ball adds $2M (GOLD_BALL_STEP in lottocalc/model.py)
 const DRAW_DAYS = { lotto649: [3, 6], lottomax: [2, 5] }; // Wed/Sat, Tue/Fri
 
@@ -481,6 +481,8 @@ function render() {
   const { next, basis } = state;
   showUpdated(next);
   document.getElementById("notices").innerHTML = noticesHtml(next);
+  const caption = document.getElementById("whole-minimum"); // in the whole-ticket chart's caption
+  if (caption) caption.textContent = perDollar(WHOLE_TICKET_MINIMUM);
   document.getElementById("verdict").innerHTML = verdictHtml(next, basis);
   const rec = next.recommendation && next.recommendation[basis];
   const order = rec ? [rec.game, otherGame(rec.game)] : Object.keys(GAMES);
