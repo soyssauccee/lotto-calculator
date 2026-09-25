@@ -1,10 +1,11 @@
-/* A one-screen dashboard. Warm cream in light mode, true black in dark mode, a soft accent
-   per game (sage for Lotto Max, sand for Lotto 6/49). The system font on Apple devices. */
+/* Warm cream in light mode, true black in dark mode, a soft accent per game (sage for
+   Lotto Max, sand for Lotto 6/49). The system font on Apple devices, Geist elsewhere. */
 :root {
   --bg: #f5f1e8;
-  --panel: #fbf9f4;
+  --card: #fcfaf5;
+  --inset: #f4efe4;
   --rule: rgba(40, 32, 20, 0.09);
-  --rule-strong: rgba(40, 32, 20, 0.2);
+  --track: rgba(40, 32, 20, 0.08);
   --text: #1d1b17;
   --text-2: #5f594f;
   --text-3: #8f887c;
@@ -17,7 +18,8 @@
   --danger: #c0513f;
   --warn-text: #88591a;
   --error-text: #9a3526;
-  --panel-shadow: 0 1px 2px rgba(60, 45, 20, 0.04), 0 6px 20px rgba(60, 45, 20, 0.05);
+  --card-edge: rgba(40, 32, 20, 0.06);
+  --card-shadow: 0 1px 2px rgba(60, 45, 20, 0.04), 0 6px 22px rgba(60, 45, 20, 0.05);
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Geist", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color-scheme: light;
 }
@@ -25,9 +27,10 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #000000;
-    --panel: #111112;
+    --card: #101011;
+    --inset: #18181a;
     --rule: rgba(255, 255, 255, 0.08);
-    --rule-strong: rgba(255, 255, 255, 0.2);
+    --track: rgba(255, 255, 255, 0.08);
     --text: #f5f5f7;
     --text-2: #a1a1a6;
     --text-3: #6e6e73;
@@ -40,7 +43,8 @@
     --danger: #ec8a7c;
     --warn-text: #e8c07c;
     --error-text: #f2a497;
-    --panel-shadow: none;
+    --card-edge: rgba(255, 255, 255, 0.06);
+    --card-shadow: none;
     color-scheme: dark;
   }
 }
@@ -52,36 +56,40 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.4 var(--font);
+  font: 15px/1.45 var(--font);
   font-variant-numeric: tabular-nums lining-nums;
   -webkit-font-smoothing: antialiased;
 }
 main {
-  max-width: 520px;
+  max-width: 540px;
   margin: 0 auto;
-  padding: max(8px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
+  padding: max(10px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom));
 }
 a { color: inherit; text-underline-offset: 2px; text-decoration-thickness: 1px; }
-h1, p { margin: 0; }
+h1, h2, p { margin: 0; }
 button { -webkit-tap-highlight-color: transparent; }
 .max { color: var(--max); }
 .g649 { color: var(--g649); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-3); }
+.dot.max { background: var(--max); }
+.dot.g649 { background: var(--g649); }
 
 /* Top bar */
-.appbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 2px 10px; }
-.brand { display: flex; align-items: center; gap: 7px; }
-.mark { width: 18px; height: 18px; flex: none; }
+.appbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 4px 14px; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.mark { width: 20px; height: 20px; flex: none; }
 .mark-max { fill: var(--max); }
 .mark-649 { fill: var(--g649); stroke: var(--bg); stroke-width: 2; }
-.brand-name { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 .status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 0;
-  background: transparent;
-  color: var(--text-3);
-  padding: 4px 0 4px 8px;
+  border: 1px solid var(--card-edge);
+  background: var(--card);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 5px 11px;
   font: 500 12px/1.4 var(--font);
   white-space: nowrap;
   cursor: pointer;
@@ -92,139 +100,159 @@ button { -webkit-tap-highlight-color: transparent; }
 .status.is-error .status-dot { background: var(--danger); }
 .status.is-busy .status-dot { animation: pulse 1s ease-in-out infinite; }
 
-/* Notices */
-.notice { margin: 0 0 10px; padding: 9px 12px; border-radius: 12px; background: var(--panel); font-size: 12.5px; line-height: 1.45; }
+/* Shared */
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 22px;
+  box-shadow: var(--card-shadow);
+  padding: 20px;
+  margin-bottom: 14px;
+}
+.kicker { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.caption { font-size: 13px; color: var(--text-3); line-height: 1.45; }
+.note { margin-top: 14px; font-size: 12px; color: var(--text-3); line-height: 1.45; }
+.notice { margin: 0 0 12px; padding: 11px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--card-edge); font-size: 13px; line-height: 1.45; }
 .notice.warn { color: var(--warn-text); }
 .notice.error { color: var(--error-text); }
-
-/* Verdict and the prize toggle */
-/* The toggle sits beside the title line; the line under the title runs full width */
-.verdict-row { position: relative; margin: 2px 2px 10px; }
-.verdict-title { font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -0.03em; padding-right: 104px; }
-.verdict-sub { margin-top: 3px; font-size: 13px; color: var(--text-2); line-height: 1.4; }
 .badge {
   display: inline-block;
-  margin-left: 2px;
+  margin-right: 4px;
   border-radius: 999px;
-  padding: 0 7px;
+  padding: 1px 8px;
   background: color-mix(in srgb, var(--warn) 18%, transparent);
   color: var(--warn-text);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  white-space: nowrap;
+  vertical-align: 1px;
 }
+
+/* Recommendation */
+.verdict { padding: 22px 20px 20px; }
+.verdict-title { font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -0.035em; margin: 8px 0 6px; }
+.verdict-sub { font-size: 14px; color: var(--text-2); line-height: 1.45; }
+.verdict-foot { margin-top: 12px; font-size: 14px; color: var(--text-2); line-height: 1.5; }
+.verdict-foot + .verdict-foot { margin-top: 6px; }
+.verdict-foot strong { color: var(--text); font-weight: 600; }
+
+/* The two games as bars from $0; the minimum is a tick across both tracks */
+.vs {
+  --name: 96px;
+  --num: 52px;
+  --gap: 12px;
+  position: relative;
+  display: grid;
+  gap: 12px;
+  margin: 22px 0 4px;
+  padding-top: 18px;
+}
+.vs-row { display: grid; grid-template-columns: var(--name) 1fr var(--num); gap: var(--gap); align-items: center; }
+.vs-name { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
+.vs-track { position: relative; height: 10px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.vs-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--text-3); opacity: 0.45; }
+.vs-fill.max { background: var(--max); }
+.vs-fill.g649 { background: var(--g649); }
+.vs-row.is-best .vs-fill { opacity: 1; }
+.vs-num { text-align: right; font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+.vs-row.is-best .vs-name { color: var(--text); }
+.vs-min-layer { position: absolute; top: 0; bottom: -4px; left: calc(var(--name) + var(--gap)); right: calc(var(--num) + var(--gap)); pointer-events: none; }
+.vs-min { position: absolute; top: 14px; bottom: 0; width: 0; border-left: 1px dashed var(--text-3); }
+.vs-min span { position: absolute; top: -16px; left: 0; transform: translateX(-50%); font-size: 10.5px; font-weight: 500; color: var(--text-3); white-space: nowrap; }
+
+/* Prize toggle */
 .segmented {
-  position: absolute;
-  top: 0;
-  right: 0;
   display: flex;
-  padding: 2px;
-  background: var(--panel);
+  max-width: 260px;
+  margin: 2px auto 16px;
+  padding: 3px;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
   border-radius: 999px;
-  box-shadow: var(--panel-shadow), inset 0 0 0 1px var(--rule);
 }
 .segmented button {
+  flex: 1;
   border: 0;
   background: transparent;
   color: var(--text-2);
-  font: 600 12px/1.4 var(--font);
-  padding: 5px 12px;
+  font: 500 13px/1.4 var(--font);
+  padding: 7px 12px;
   border-radius: 999px;
   cursor: pointer;
   transition: background-color 0.2s, color 0.2s;
 }
-.segmented button[aria-pressed="true"] { background: var(--invert-bg); color: var(--invert-text); }
+.segmented button[aria-pressed="true"] { background: var(--invert-bg); color: var(--invert-text); font-weight: 600; }
 
-/* Panels */
-.panel { background: var(--panel); border-radius: 18px; box-shadow: var(--panel-shadow); margin-bottom: 10px; overflow: hidden; }
+/* Game cards */
+.game-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+.game-head h2 { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.game-when { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.jackpot { font-size: 46px; line-height: 1.05; font-weight: 700; letter-spacing: -0.045em; margin-top: 4px; }
+.tags { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.tags li { font-size: 12px; color: var(--text-2); background: var(--inset); border-radius: 999px; padding: 4px 10px; }
 
-/* The comparison table */
-.compare { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.compare th,
-.compare td { padding: 7px 10px; text-align: left; vertical-align: top; border-top: 1px solid var(--rule); }
-.compare thead th,
-.compare thead td { border-top: 0; padding-top: 11px; }
-.compare tbody th {
-  width: 27%;
-  padding-left: 14px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-3);
-  line-height: 1.3;
-}
-.compare thead th { width: 27%; }
-.compare td { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
-.compare td:last-child { padding-right: 14px; }
-.compare td small { display: block; margin-top: 1px; font-size: 11px; font-weight: 400; letter-spacing: 0; color: var(--text-3); line-height: 1.3; }
-.compare td.best { background: color-mix(in srgb, var(--text) 3.5%, transparent); }
-.compare td.best.max-col { background: color-mix(in srgb, var(--max) 11%, transparent); }
-.compare td.best.g649-col { background: color-mix(in srgb, var(--g649) 11%, transparent); }
-.game { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.dot.max { background: var(--max); }
-.dot.g649 { background: var(--g649); }
-.mid { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
-.big { display: block; font-size: 26px; line-height: 1.1; font-weight: 700; letter-spacing: -0.04em; color: var(--text); }
-td.best .big.max { color: var(--max); }
-td.best .big.g649 { color: var(--g649); }
-.parts { list-style: none; margin: 5px 0 0; padding: 0; font-size: 11px; font-weight: 400; letter-spacing: 0; color: var(--text-2); line-height: 1.35; }
-.parts li { display: flex; gap: 6px; justify-content: space-between; }
-.parts b { font-weight: 600; color: var(--text); }
-.none { color: var(--text-3); font-weight: 400; }
+.value { margin-top: 18px; padding: 16px; border-radius: 16px; background: var(--inset); }
+.value-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.value-num { font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -0.04em; }
+.value .caption { margin-top: 4px; }
+.bar { display: flex; gap: 2px; height: 6px; margin: 14px 0 6px; border-radius: 999px; overflow: hidden; background: var(--track); }
+.bar span { display: block; height: 100%; }
 
-/* Chart */
-.chart-panel { padding: 10px 12px 8px; }
+/* Label-and-figure rows, like a settings list */
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--rule); }
+.list li:first-child { border-top: 0; }
+.list li > span { min-width: 0; }
+.list b { font-weight: 600; white-space: nowrap; }
+.list small { display: block; margin-top: 1px; font-size: 12px; color: var(--text-3); }
+.parts li { padding: 6px 0; font-size: 13px; color: var(--text-2); border-top: 0; }
+.parts li > span { display: inline-flex; align-items: center; gap: 8px; }
+.parts i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.parts b { color: var(--text); }
+.facts { margin-top: 10px; }
+.facts li { padding: 11px 2px; }
+.facts b { font-size: 16px; letter-spacing: -0.01em; }
+
+/* Charts */
+.chart-card h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.chart-card .caption { margin-top: 4px; }
+.chart { margin: 16px -4px 0; }
 .chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
 .chart .grid { stroke: var(--rule); stroke-width: 1; }
-.chart .axis { fill: var(--text-3); font-size: 9px; font-family: var(--font); }
+.chart .axis { fill: var(--text-3); font-size: 9.5px; font-family: var(--font); }
 .chart .max { stroke: var(--max); fill: var(--max); }
 .chart .g649 { stroke: var(--g649); fill: var(--g649); }
-.chart polyline.line { fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
-.chart circle.next { fill: var(--panel); stroke-width: 1.6; }
+.chart polyline.line { fill: none; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.chart circle.next { fill: var(--card); stroke-width: 1.7; }
 .chart circle.focus { fill: none; stroke: var(--text); stroke-width: 1; }
 .chart .minline { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 3; }
-.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 2px 0; font-size: 11px; color: var(--text-2); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 4px 0; font-size: 12px; color: var(--text-2); }
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.chart-legend span::before { content: ""; width: 12px; height: 2px; border-radius: 2px; background: var(--text-3); }
+.chart-legend span::before { content: ""; width: 14px; height: 2px; border-radius: 2px; background: var(--text-3); }
 .chart-legend .key-max::before { background: var(--max); }
 .chart-legend .key-g649::before { background: var(--g649); }
 .chart-legend .key-min::before { height: 0; background: none; border-top: 1px dashed var(--text-3); }
-.readout { min-height: 1.4em; margin: 4px 2px 0; font-size: 11.5px; color: var(--text-3); line-height: 1.4; }
+.readout { min-height: 2.9em; margin-top: 10px; font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
 
-/* Footer: below the fold on small phones, which is fine */
-.footer { margin-top: 18px; padding: 0 4px; font-size: 11px; color: var(--text-3); line-height: 1.5; }
+/* Footer */
+.footer { margin-top: 22px; padding: 0 4px; font-size: 12px; color: var(--text-3); line-height: 1.5; }
 .footer p + p { margin-top: 6px; }
 
 /* Loading placeholders */
 .skeleton {
   border-radius: 8px;
-  background: linear-gradient(90deg, var(--rule) 25%, var(--rule-strong) 37%, var(--rule) 63%);
+  background: linear-gradient(90deg, var(--track) 25%, var(--rule) 37%, var(--track) 63%);
   background-size: 400% 100%;
   animation: shimmer 1.4s ease infinite;
 }
-.skeleton-title { width: 190px; height: 28px; }
-.skeleton-line { width: 240px; height: 13px; margin-top: 8px; }
-.skeleton-block { height: 300px; border-radius: 0; }
+.skeleton-title { width: 60%; height: 32px; margin: 10px 0 8px; }
+.skeleton-line { width: 45%; height: 14px; }
+.skeleton-bars { height: 44px; margin-top: 24px; }
 
 @keyframes shimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
 @keyframes pulse { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) {
   .skeleton, .status.is-busy .status-dot { animation: none; }
   .segmented button { transition: none; }
-}
-
-/* Short screens (small iPhones with Safari's toolbars showing): tighten so it all still fits */
-@media (max-height: 640px) {
-  .appbar { padding-bottom: 6px; }
-  .verdict-title { font-size: 22px; }
-  .verdict-sub { font-size: 12px; }
-  .compare th,
-  .compare td { padding-top: 5px; padding-bottom: 5px; }
-  .compare thead td { padding-top: 8px; }
-  .big { font-size: 22px; }
-  .mid { font-size: 16px; }
-  .parts { margin-top: 3px; line-height: 1.3; }
-  .chart-legend { display: none; }
 }

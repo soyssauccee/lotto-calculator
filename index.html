@@ -38,30 +38,38 @@
 
     <div id="notices"></div>
 
-    <div class="verdict-row">
-      <section id="verdict" class="verdict" aria-live="polite">
-        <div class="skeleton skeleton-title"></div>
-        <div class="skeleton skeleton-line"></div>
-      </section>
-      <div id="basis" class="segmented" role="group" aria-label="Prizes to count">
-        <button type="button" data-basis="top_prizes">Big</button>
-        <button type="button" data-basis="all_prizes">All</button>
-      </div>
-    </div>
-
-    <section id="table" class="panel">
-      <div class="skeleton skeleton-block"></div>
+    <section id="verdict" class="card verdict" aria-live="polite">
+      <p class="kicker">Recommendation</p>
+      <div class="skeleton skeleton-title"></div>
+      <div class="skeleton skeleton-line"></div>
+      <div class="skeleton skeleton-bars"></div>
     </section>
 
-    <section class="panel chart-panel">
+    <div id="basis" class="segmented" role="group" aria-label="Prizes to count">
+      <button type="button" data-basis="top_prizes">Big prizes</button>
+      <button type="button" data-basis="all_prizes">All prizes</button>
+    </div>
+
+    <div id="games"></div>
+
+    <section class="card chart-card">
+      <h2>Value per $1 in big prizes</h2>
+      <p class="caption">Jackpots, the Gold Ball draw, MAXPLUS and MAXMILLIONS, with the plays each draw actually sold. Hollow dots are the next draws; above the dashed line is worth playing.</p>
       <div id="chart" class="chart"></div>
-      <p id="readout" class="readout"></p>
+      <p id="readout" class="readout">Tap the chart for a draw's details.</p>
+    </section>
+
+    <section class="card chart-card">
+      <h2>Value per $1 for the whole ticket</h2>
+      <p class="caption">Every prize counted: the big prizes plus the smaller ones (free plays, $5 to $20 prizes and shared pools). Hollow dots are the next draws.</p>
+      <div id="chart-all" class="chart"></div>
+      <p id="readout-all" class="readout">Tap the chart for a draw's details.</p>
     </section>
 
     <footer class="footer">
-      <p>Value is the expected winnings per $1 spent: "Big" counts the jackpots, Gold Ball, MAXPLUS and MAXMILLIONS; "All" adds every smaller prize. Odds are for $6 of plays; plays sold is the forecast for the next draw. Under $1 means a ticket pays back less than it costs, on average. The chart's dashed line is the $0.30 minimum worth playing.</p>
-      <p id="assumption" hidden>Forecasts assume a regular draw: Super Draws aren't announced where this page can read them.</p>
-      <p>Prize breakdowns from <a href="https://www.wclc.com">WCLC</a>; sales are worked out from the published prizes and forecast for the next draw. Not affiliated with OLG. <a href="https://github.com/soyssauccee/lotto-calculator#readme">Methodology</a></p>
+      <p>Values are expected winnings per $1 spent. Under $1 means a ticket pays back less than it costs, on average.</p>
+      <p>Prize breakdowns from <a href="https://www.wclc.com">WCLC</a>. Sales are worked out from the published prizes, and the next draw's sales are forecast. Not affiliated with OLG.</p>
+      <p><a href="https://github.com/soyssauccee/lotto-calculator#readme">Methodology</a></p>
     </footer>
     <noscript><p class="notice error">This page needs JavaScript to show the numbers.</p></noscript>
   </main>
