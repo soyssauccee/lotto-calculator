@@ -15,9 +15,9 @@
   --g649: #a9693a;
   /* chart lines: each game's shade above and below the minimum */
   --max-hi: #1d8a5a;
-  --max-lo: #a3bcb1;
+  --max-lo: #74a58f;
   --g649-hi: #cc5f0e;
-  --g649-lo: #d2b594;
+  --g649-lo: #d69a6c;
   --ok: #3f9a66;
   --warn: #c48a2c;
   --danger: #c0513f;
@@ -44,9 +44,9 @@
     --max: #a9cbbc;
     --g649: #e2c393;
     --max-hi: #7ee2b0;
-    --max-lo: #56695f;
+    --max-lo: #5c9e80;
     --g649-hi: #f7b04b;
-    --g649-lo: #7a6852;
+    --g649-lo: #b58a50;
     --ok: #7dc79a;
     --warn: #e2b264;
     --danger: #ec8a7c;

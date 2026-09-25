@@ -411,7 +411,7 @@ function renderChart(chart, draws, next) {
       <circle class="focus" r="6" cx="-20" cy="-20"/>
     </svg>
     <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="key-${GAMES[g].css}"><i class="hi"></i><i class="lo"></i>${GAMES[g].name}</span>`).join("")}${minimumKey}</div>
-    <p class="chart-key-note">Bright above the minimum, faded below it.</p>`;
+    <p class="chart-key-note">Brighter above the minimum, softer below it.</p>`;
 
   const svg = el.querySelector("svg");
   const focus = el.querySelector(".focus");
