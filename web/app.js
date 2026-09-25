@@ -23,7 +23,7 @@ const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
 const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const DEFAULT_MINIMUM = 0.3; // matches MIN_WORTH_PLAYING in lottocalc/value.py
-const WHOLE_TICKET_MINIMUM = 0.45; // the dashed line on the whole-ticket chart
+const WHOLE_TICKET_MINIMUM = 0.45; // the whole-ticket guide: the dashed line on its chart and bars
 const GOLD_BALL_STEP = 2e6; // each white ball adds $2M (GOLD_BALL_STEP in lottocalc/model.py)
 const DRAW_DAYS = { lotto649: [3, 6], lottomax: [2, 5] }; // Wed/Sat, Tue/Fri
 
@@ -135,9 +135,9 @@ function worthPlaying(next) {
   return recommendation.play ?? recommendation.top_prizes.per_dollar >= minimumToPlay(next);
 }
 
-// Both games as bars from $0, with the play minimum marked when judging big prizes.
+// Both games as bars from $0, with the minimum for the prizes counted marked across them.
 function barsHtml(first, firstValue, secondValue, minimum, highlightFirst) {
-  const top = Math.max(firstValue, secondValue, minimum ?? 0) * 1.15 || 1;
+  const top = Math.max(firstValue, secondValue, minimum) * 1.15;
   const pct = (v) => `${Math.min(100, (100 * v) / top).toFixed(1)}%`;
   const bar = (game, v, best) => `
     <div class="vs-row${best ? " is-best" : ""}">
@@ -145,9 +145,7 @@ function barsHtml(first, firstValue, secondValue, minimum, highlightFirst) {
       <span class="vs-track"><span class="vs-fill ${GAMES[game].css}" style="width:${pct(v)}"></span></span>
       <span class="vs-num">${perDollar(v)}</span>
     </div>`;
-  const min = minimum == null
-    ? ""
-    : `<span class="vs-min" style="left:${pct(minimum)}"><span>${perDollar(minimum)} min</span></span>`;
+  const min = `<span class="vs-min" style="left:${pct(minimum)}"><span>${perDollar(minimum)} min</span></span>`;
   return `
     <div class="vs">
       ${bar(first, firstValue, highlightFirst)}${bar(otherGame(first), secondValue, false)}
@@ -181,7 +179,7 @@ function verdictHtml(next, basis) {
   const best = rec.game;
   const other = otherGame(best);
   const counted = basis === "all_prizes" ? "all prizes" : "big prizes";
-  const minimum = basis === "top_prizes" ? minimumToPlay(next) : null;
+  const minimum = basis === "top_prizes" ? minimumToPlay(next) : WHOLE_TICKET_MINIMUM;
   return `
     <p class="kicker">Recommendation</p>
     <h1 class="verdict-title">Play <span class="${GAMES[best].css}">${GAMES[best].name}</span></h1>
@@ -352,7 +350,7 @@ function renderChart(chart, draws, next) {
   const t1 = Math.max(...all.map((p) => p.t));
   const step = 0.1;
   const minimum = chart.minimum ?? minimumToPlay(next);
-  const vMax = Math.max(step * 2, Math.ceil((Math.max(minimum ?? 0, ...all.map((p) => p.v)) * 1.05) / step) * step);
+  const vMax = Math.max(step * 2, Math.ceil((Math.max(minimum, ...all.map((p) => p.v)) * 1.05) / step) * step);
   const x = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);
   const y = (v) => T + (1 - v / vMax) * (H - T - B);
 
@@ -401,8 +399,8 @@ function renderChart(chart, draws, next) {
       <clipPath id="${clipBelow}"><rect x="0" y="${yMin}" width="${W}" height="${H - yMin}"/></clipPath>
     </defs>`;
 
-  const minimumLine = minimum == null ? "" : `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
-  const minimumKey = minimum == null ? "" : `<span class="key-min">${perDollar(minimum)} minimum</span>`;
+  const minimumLine = `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
+  const minimumKey = `<span class="key-min">${perDollar(minimum)} minimum</span>`;
   const described = chart.allPrizes ? "with all prizes" : "in big prizes";
 
   el.innerHTML = `
@@ -496,11 +494,18 @@ function render() {
 function show(withCharts) {
   try {
     render();
-    if (withCharts) for (const chart of CHARTS) renderChart(chart, state.draws, state.next);
+    if (withCharts) drawCharts();
   } catch (error) {
     console.error(error);
     showProblem(`Something went wrong showing the numbers (${error.message}). Tap the status button at the top to try again.`);
   }
+}
+
+let chartWidth = 0; // the width the charts were last drawn at
+
+function drawCharts() {
+  for (const chart of CHARTS) renderChart(chart, state.draws, state.next);
+  chartWidth = document.getElementById("chart")?.clientWidth;
 }
 
 function showProblem(text) {
@@ -540,15 +545,12 @@ document.getElementById("basis").addEventListener("click", (event) => {
 });
 document.getElementById("refresh").addEventListener("click", load);
 // The charts are drawn to their width, so redraw them when it changes (rotating a phone).
-let chartWidth = 0;
+// Only width counts: iOS also fires resize when Safari's toolbar hides on scroll.
 let resizeTimer = 0;
 addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    const width = document.getElementById("chart")?.clientWidth;
-    if (!state.next || !width || width === chartWidth) return;
-    chartWidth = width;
-    for (const chart of CHARTS) renderChart(chart, state.draws, state.next);
+    if (state.next && document.getElementById("chart")?.clientWidth !== chartWidth) drawCharts();
   }, 150);
 });
 document.addEventListener("visibilitychange", () => {

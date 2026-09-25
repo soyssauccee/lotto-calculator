@@ -155,7 +155,9 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
   and the jackpot must be won by the draw where the gold ball is the last one left (worked out
   from the balls remaining, at $2M per white ball); Lotto Max has no must-win draw
 - two charts of value per $1 over recent draws, one for big prizes (with the $0.30 minimum)
-  and one for the whole ticket with every prize (tap a point for details)
+  and one for the whole ticket with every prize (with a $0.45 guide line); each game's line is
+  brighter above the minimum and softer below it (tap a point for details). The Big prizes /
+  All prizes toggle switches the recommendation's bars between the two minimums
 - when the data was last updated, with warnings for failed or stale updates
 
 `.github/workflows/pages.yml` publishes `index.html`, `web/` and `data/` to GitHub Pages. To
