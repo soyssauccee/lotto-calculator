@@ -23,6 +23,8 @@ const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
 const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const DEFAULT_MINIMUM = 0.3; // matches MIN_WORTH_PLAYING in lottocalc/value.py
+const GOLD_BALL_STEP = 2e6; // each white ball adds $2M (GOLD_BALL_STEP in lottocalc/model.py)
+const DRAW_DAYS = { lotto649: [3, 6], lottomax: [2, 5] }; // Wed/Sat, Tue/Fri
 
 const state = { next: null, draws: [], basis: readBasis(), loadedAt: 0, loading: false, failed: false };
 
@@ -199,6 +201,41 @@ function prizeFacts(game, info) {
   return { label: "Gold Ball jackpot", amount: money(info.gold_ball_amount), tags: [balls, "White ball pays $1M", "Classic $5M"] };
 }
 
+// The date `count` draws after `isoDate`, on the game's draw days.
+function drawDateAfter(game, isoDate, count) {
+  const date = new Date(isoDate + "T12:00:00");
+  for (let left = count; left > 0; ) {
+    date.setDate(date.getDate() + 1);
+    if (DRAW_DAYS[game].includes(date.getDay())) left--;
+  }
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; // local, not UTC
+}
+
+// Whether each game is sure to pay out. Every 6/49 draw pays one ticket $1M or the Gold Ball
+// jackpot, and white balls leave the drum, so the gold ball must come out by the draw where
+// it's the only ball left. Lotto Max has no must-win rule.
+function guaranteeHtml(game, info) {
+  if (game === "lottomax") {
+    return `<div class="guarantee"><p class="guarantee-title">No guaranteed winner</p><p>Lotto Max has no must-win draw: the jackpot rolls over until a ticket matches all 7 numbers.</p></div>`;
+  }
+  const balls = info.balls_remaining;
+  if (!balls) return "";
+  const title = `<p class="guarantee-title is-sure">A winner every draw</p>`;
+  const every = "Each draw, one ticket wins $1M (white ball) or the Gold Ball jackpot (gold ball).";
+  if (balls === 1) {
+    return `<div class="guarantee">${title}<p>${every} Only the gold ball is left, so <strong>this draw's ${money(info.gold_ball_amount)} Gold Ball jackpot will be won</strong>.</p></div>`;
+  }
+  const ahead = balls - 1;
+  const lastDraw = info.draw_number ? `Draw ${info.draw_number + ahead}, ` : "";
+  const lastDate = dayText(drawDateAfter(game, info.draw_date, ahead));
+  const lastAmount = money(info.gold_ball_amount + ahead * GOLD_BALL_STEP);
+  return `
+    <div class="guarantee">${title}
+      <p>${every} The jackpot is <strong>guaranteed to be won by ${esc(lastDraw)}${esc(lastDate)}</strong> at ${lastAmount}, when the gold ball would be the last one left. Chance it comes out this draw: 1 in ${balls}.</p>
+    </div>`;
+}
+
 // One card per game: the jackpot, what $1 is worth and why, then the odds and the forecast.
 function gameHtml(game, info, basis) {
   const g = GAMES[game];
@@ -214,7 +251,8 @@ function gameHtml(game, info, basis) {
   const jackpot = `
     <p class="kicker">${facts.label}</p>
     <p class="jackpot">${facts.amount}</p>
-    ${facts.tags.length ? `<ul class="tags">${facts.tags.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}`;
+    ${facts.tags.length ? `<ul class="tags">${facts.tags.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+    ${guaranteeHtml(game, info)}`;
   const value = info.value;
   const forecast = info.forecast;
   if (!value || !forecast) {

@@ -151,6 +151,9 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
 - the verdict and the value gap, with a Big prizes / All prizes toggle
 - a card per game: prizes, value per $1 with its range and parts, odds for $6, and the sales
   forecast
+- whether a winner is guaranteed: every 6/49 draw pays one ticket $1M or the Gold Ball jackpot,
+  and the jackpot must be won by the draw where the gold ball is the last one left (worked out
+  from the balls remaining, at $2M per white ball); Lotto Max has no must-win draw
 - two charts of value per $1 over recent draws, one for big prizes (with the $0.30 minimum)
   and one for the whole ticket with every prize (tap a point for details)
 - when the data was last updated, with warnings for failed or stale updates

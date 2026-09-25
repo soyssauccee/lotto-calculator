@@ -192,6 +192,13 @@ button { -webkit-tap-highlight-color: transparent; }
 .tags { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .tags li { font-size: 12px; color: var(--text-2); background: var(--inset); border-radius: 999px; padding: 4px 10px; }
 
+/* Whether the game is sure to pay out */
+.guarantee { margin-top: 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--rule); font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.guarantee-title { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; font-size: 13px; font-weight: 600; color: var(--text); }
+.guarantee-title::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); flex: none; }
+.guarantee-title.is-sure::before { background: var(--ok); }
+.guarantee strong { color: var(--text); font-weight: 600; }
+
 .value { margin-top: 18px; padding: 16px; border-radius: 16px; background: var(--inset); }
 .value-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .value-num { font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -0.04em; }
