@@ -3,7 +3,7 @@
     python recommend.py                 compare on the big prizes (jackpots, Gold Ball, MAXPLUS, MAXMILLIONS)
     python recommend.py --all-prizes    include the lower prize categories too
 
-Neither game is recommended when both are under $0.30 back per $1 in big prizes.
+Neither game is recommended when both are under $0.35 back per $1 in big prizes.
 
 Reads data/next.json as written by the last `python scrape.py`.
 """

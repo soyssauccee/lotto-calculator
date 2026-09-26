@@ -6,12 +6,12 @@ import alert
 from lottocalc import alerts, model
 
 
-def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.33, g649_value=0.22,
+def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.37, g649_value=0.22,
         max_draw=1273, g649_draw=4454, balls=29, legacy=False):
     runner_up = g649_value if best == model.LOTTO_MAX else max_value
     recommendation = {"top_prizes": {"game": best, "per_dollar": max(max_value, g649_value), "runner_up_per_dollar": runner_up}}
     if not legacy:  # next.json files from before the minimum lack these
-        recommendation.update(play=max(max_value, g649_value) >= 0.30, min_per_dollar=0.30)
+        recommendation.update(play=max(max_value, g649_value) >= 0.35, min_per_dollar=0.35)
     return {
         "scraped_at": stamp,
         model.LOTTO_MAX: {"draw_number": max_draw, "draw_date": "2026-09-25", "jackpot": 60_000_000,
@@ -53,24 +53,24 @@ def test_falling_back_to_the_backup_source_counts_as_a_problem():
 
 
 def test_switch_between_games_worth_playing_is_announced():
-    switched = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.31, g649_value=0.34, max_draw=1274)
+    switched = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.36, g649_value=0.39, max_draw=1274)
     messages = alerts.value_alerts(CLEAN_NOW, switched)
     assert len(messages) == 1
-    assert messages[0].startswith("Lotto 6/49 is now the better buy: $0.34 vs $0.31")
+    assert messages[0].startswith("Lotto 6/49 is now the better buy: $0.39 vs $0.36")
 
 
 def test_dropping_below_the_minimum_is_announced():
     both_low = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.05, g649_value=0.24, max_draw=1274)
     assert alerts.verdict(both_low) == "skip"
     assert alerts.value_alerts(CLEAN_NOW, both_low) == [
-        "Neither game is worth playing now: the better one, Lotto 6/49, is at $0.24 back per $1, under your $0.30 minimum."
+        "Neither game is worth playing now: the better one, Lotto 6/49, is at $0.24 back per $1, under your $0.35 minimum."
     ]
 
 
 def test_becoming_worth_playing_is_announced():
     both_low = doc("2026-09-24T11:17:00Z", max_value=0.25, max_draw=1272)
     assert alerts.value_alerts(both_low, CLEAN_NOW) == [
-        "Lotto Max is worth playing: $0.33 back per $1 for the 2026-09-25 draw ($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
+        "Lotto Max is worth playing: $0.37 back per $1 for the 2026-09-25 draw ($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
     ]
 
 
@@ -81,7 +81,7 @@ def test_no_alert_while_nothing_is_worth_playing():
 
 
 def test_next_json_from_before_the_minimum_still_compares():
-    legacy = doc("2026-09-24T11:17:00Z", legacy=True)  # Lotto Max at $0.33, no "play" field
+    legacy = doc("2026-09-24T11:17:00Z", legacy=True)  # Lotto Max at $0.37, no "play" field
     assert alerts.verdict(legacy) == model.LOTTO_MAX
     assert alerts.value_alerts(legacy, CLEAN_NOW) == []
 
@@ -97,8 +97,8 @@ def test_threshold_alert_fires_once_per_draw():
 
 
 def test_threshold_can_be_changed():
-    before = doc("2026-09-23T11:17:00Z", max_draw=1272, max_value=0.30)
-    assert alerts.value_alerts(before, CLEAN_NOW, threshold=0.33)  # Lotto Max reaches $0.33 on draw 1273
+    before = doc("2026-09-23T11:17:00Z", max_draw=1272, max_value=0.35)
+    assert alerts.value_alerts(before, CLEAN_NOW, threshold=0.37)  # Lotto Max reaches $0.37 on draw 1273
     assert not alerts.value_alerts(before, CLEAN_NOW, threshold=0.40)
 
 

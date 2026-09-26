@@ -17,7 +17,9 @@ def write_data(tmp_path):
 
 
 def test_recommend_prints_the_pick_and_the_breakdown(tmp_path, capsys):
-    write_data(tmp_path)
+    next_doc = write_data(tmp_path)  # Lotto Max at about $0.33: under the minimum, so make it a pick
+    next_doc["recommendation"]["play"] = True
+    (tmp_path / "next.json").write_text(json.dumps(next_doc), encoding="utf-8")
     assert recommend.main(["--data-dir", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert "Play Lotto Max: $0.3" in out
@@ -26,7 +28,9 @@ def test_recommend_prints_the_pick_and_the_breakdown(tmp_path, capsys):
 
 
 def test_recommend_with_all_prizes(tmp_path, capsys):
-    write_data(tmp_path)
+    next_doc = write_data(tmp_path)
+    next_doc["recommendation"]["play"] = True  # as in the test above
+    (tmp_path / "next.json").write_text(json.dumps(next_doc), encoding="utf-8")
     recommend.main(["--data-dir", str(tmp_path), "--all-prizes"])
     assert "back per $1 in all prizes" in capsys.readouterr().out
 
@@ -36,7 +40,7 @@ def test_recommend_says_skip_below_the_minimum(tmp_path, capsys):
     next_doc["recommendation"]["play"] = False
     (tmp_path / "next.json").write_text(json.dumps(next_doc), encoding="utf-8")
     assert recommend.main(["--data-dir", str(tmp_path)]) == 0
-    assert "Skip for now: neither game reaches $0.30" in capsys.readouterr().out
+    assert "Skip for now: neither game reaches $0.35" in capsys.readouterr().out
 
 
 def test_forecast_report(tmp_path, capsys):
