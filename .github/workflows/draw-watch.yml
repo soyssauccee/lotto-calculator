@@ -15,6 +15,10 @@ on:
         description: "Start checking at once instead of after draw time"
         type: boolean
         default: true
+      check_dispatch:
+        description: "Only test that it can start the Scrape workflow"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,4 +42,4 @@ jobs:
       - name: Watch for tonight's results
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -u watch.py ${{ inputs.now && '--now' || '' }}
+        run: python -u watch.py ${{ inputs.now && '--now' || '' }} ${{ inputs.check_dispatch && '--check-dispatch' || '' }}

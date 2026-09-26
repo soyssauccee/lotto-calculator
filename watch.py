@@ -133,7 +133,12 @@ class GitHub:
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--now", action="store_true", help="start checking at once instead of after draw time")
+    parser.add_argument("--check-dispatch", action="store_true", help="just start one Scrape run and wait for it, to test access")
     args = parser.parse_args(argv)
+
+    if args.check_dispatch:
+        ok = GitHub(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"]).run_scrape()
+        return 0 if ok else 1
 
     started = datetime.now(timezone.utc)
     deadline = started + RUN_BUDGET
