@@ -153,6 +153,11 @@ function barsHtml(first, firstValue, secondValue, minimum, highlightFirst) {
     </div>`;
 }
 
+// "$0.04 short", or "just short" when it rounds to under a cent.
+function shortBy(gap) {
+  return gap < 0.005 ? "just short" : `${perDollar(gap)} short`;
+}
+
 function skipHtml(next) {
   const top = next.recommendation.top_prizes; // the minimum is judged on big prizes
   const best = top.game;
@@ -162,7 +167,7 @@ function skipHtml(next) {
     <h1 class="verdict-title">Skip for now</h1>
     <p class="verdict-sub">Neither game reaches the ${perDollar(minimum)} minimum back per $1 in big prizes.</p>
     ${barsHtml(best, top.per_dollar, top.runner_up_per_dollar, minimum, false)}
-    <p class="verdict-foot">The closer one, ${GAMES[best].name}, is <strong>${perDollar(minimum - top.per_dollar)} short</strong>.</p>`;
+    <p class="verdict-foot">The closer one, ${GAMES[best].name}, is <strong>${shortBy(minimum - top.per_dollar)}</strong>.</p>`;
 }
 
 function verdictHtml(next, basis) {
