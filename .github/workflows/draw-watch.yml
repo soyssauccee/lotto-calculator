@@ -1,0 +1,41 @@
+name: Draw watch
+
+# On draw nights, one long job that picks up the results soon after they're posted.
+# Scheduled runs can start hours late, so instead of a run timed for the 10:30 PM
+# Eastern draw, this starts in the evening and keeps going for up to 6 hours:
+# watch.py sleeps until just after the draw, checks the lottery sites every 10
+# minutes, and starts the Scrape workflow (commit, redeploy, alerts) as soon as
+# there's anything new. The Scrape workflow's own schedule remains the fallback.
+on:
+  schedule:
+    - cron: "37 0 * * 0,3,4,6"  # the Tue/Wed/Fri/Sat draw evenings: 8:37 PM EDT / 7:37 PM EST
+  workflow_dispatch:
+    inputs:
+      now:
+        description: "Start checking at once instead of after draw time"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: write  # start the Scrape workflow
+
+concurrency:
+  group: draw-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04  # pinned: unattended jobs shouldn't change OS under us
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Watch for tonight's results
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -u watch.py ${{ inputs.now && '--now' || '' }}

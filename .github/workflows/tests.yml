@@ -1,0 +1,25 @@
+name: Tests
+
+# The offline test suite, on every push and pull request that touches code.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["data/**"]  # the bot's data commits don't change any code
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-24.04  # pinned: unattended jobs shouldn't change OS under us
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q

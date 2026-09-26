@@ -172,7 +172,15 @@ redeploys the page. Times are UTC in the file:
 - 5:17 PM Eastern on draw days (Tue, Wed, Fri, Sat), since jackpot estimates sometimes rise
 - about 1¾ and 4¼ hours after each 10:30 PM draw, while daylight time is in effect
 
-Afterwards, `alert.py` sends two kinds of alerts:
+GitHub often starts scheduled runs hours late, so those can't be relied on to catch a draw
+the same night. `.github/workflows/draw-watch.yml` covers that: on draw evenings it starts
+one long job (up to 6 hours) running `watch.py`, which sleeps until just after the draw,
+checks the lottery sites every 10 minutes, and as soon as anything is new (the results or
+the next jackpot, not just a fresh timestamp) starts the Scrape workflow, which runs at once
+when started that way. It stops when the night's results and next jackpots are all in.
+`.github/workflows/tests.yml` runs the test suite on every push that changes code.
+
+After each Scrape run, `alert.py` sends two kinds of alerts:
 
 - **Data problems.** Errors, a fallback to the backup source, or a crash. A crash opens a
   `data-problem` issue straight away; other problems do once they last two runs in a row, so
