@@ -173,11 +173,15 @@ redeploys the page. Times are UTC in the file:
 - about 1¾ and 4¼ hours after each 10:30 PM draw, while daylight time is in effect
 
 GitHub often starts scheduled runs hours late, so those can't be relied on to catch a draw
-the same night. `.github/workflows/draw-watch.yml` covers that: on draw evenings it starts
-one long job (up to 6 hours) running `watch.py`, which sleeps until just after the draw,
-checks the lottery sites every 10 minutes, and as soon as anything is new (the results or
-the next jackpot, not just a fresh timestamp) starts the Scrape workflow, which runs at once
-when started that way. It stops when the night's results and next jackpots are all in.
+the same night (here they have started 0.5 to 5 hours late, and some never ran).
+`.github/workflows/draw-watch.yml` covers that. It is scheduled four times each draw day,
+from midday on, and the first run to start keeps watch while later ones see it and exit.
+`watch.py` sleeps until just after the draw; since a job can only run for 6 hours, it hands
+over to a fresh run before then, started by dispatch, which begins at once. After the draw
+it checks the lottery sites every 10 minutes, and as soon as anything is new (the results
+or the next jackpot, not just a fresh timestamp) it starts the Scrape workflow, which also
+runs at once when started that way. It stops when the night's results and next jackpots are
+all in, or at noon the next day.
 `.github/workflows/tests.yml` runs the test suite on every push that changes code.
 
 After each Scrape run, `alert.py` sends two kinds of alerts:
