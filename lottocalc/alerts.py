@@ -1,7 +1,9 @@
-"""Deciding when to tell the owner something: stale data, or a value worth knowing about.
+"""Deciding when to tell the owner something: stale data, a draw's outcome, or a value worth knowing about.
 
 Everything here compares the next.json a run started with to the one it wrote.
 """
+from datetime import date
+
 from . import model, value
 
 # Warnings that mean a source is degrading even though the data is still current.
@@ -44,14 +46,31 @@ def verdict(doc):
     return top["game"] if play else "skip"
 
 
+def finished_draws(previous, current):
+    """Games whose next draw moved on between the two: a draw was held and the next jackpot is
+    posted. While a jackpot isn't posted yet the draw number is missing, so that counts once
+    the number appears."""
+    games = []
+    for game in model.GAMES:
+        before, now = previous.get(game), current.get(game) or {}
+        if before and now.get("draw_number") and now["draw_number"] > (before.get("draw_number") or 0):
+            games.append(game)
+    return games
+
+
 def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
-    """Messages for a change of verdict (play one game, the other, or skip; judged on big prizes),
-    and for a draw whose whole ticket, every prize counted, is worth `threshold` or more per $1."""
+    """Messages for a change of verdict (play one game, the other, or skip; judged on big prizes);
+    after each draw, once the next jackpot is posted, whether to keep playing if the verdict
+    didn't change; and for a draw whose whole ticket, every prize counted, is worth `threshold`
+    or more per $1."""
     if not current:
         return []
     previous = previous or {}
     alerts = []
     now, before = verdict(current), verdict(previous)
+    finished = finished_draws(previous, current)
+    if now and finished and now == before:
+        alerts.append(_after_draw(previous, current, finished, now))
     if now and before and now != before:
         recommendation = current["recommendation"]
         top = recommendation["top_prizes"]
@@ -87,6 +106,25 @@ def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
             f"draw ({_prizes(game, info)}), above your ${threshold:.2f} alert."
         )
     return alerts
+
+
+def _after_draw(previous, current, finished, now):
+    """The post-draw message when the verdict stayed the same."""
+    held = " and ".join(
+        f"{date.fromisoformat(previous[g]['draw_date']):%A}'s {model.GAME_NAMES[g]}" if previous[g].get("draw_date")
+        else model.GAME_NAMES[g]
+        for g in finished
+    )
+    recommendation = current["recommendation"]
+    top = recommendation["top_prizes"]
+    best, other = top["game"], model.LOTTO_649 if top["game"] == model.LOTTO_MAX else model.LOTTO_MAX
+    if now == "skip":
+        return (f"After {held} draw: still nothing worth playing. The better one, {model.GAME_NAMES[best]}, is at "
+                f"${top['per_dollar']:.2f} back per $1, under your ${recommendation['min_per_dollar']:.2f} minimum.")
+    info = current[best]
+    return (f"After {held} draw: keep playing {model.GAME_NAMES[best]}: ${top['per_dollar']:.2f} back per $1 for "
+            f"{date.fromisoformat(info['draw_date']):%a %b %d} ({_prizes(best, info)}). "
+            f"{model.GAME_NAMES[other]} is at ${top['runner_up_per_dollar']:.2f}.")
 
 
 def _prizes(game, info):

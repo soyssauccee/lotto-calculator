@@ -184,12 +184,15 @@ runs at once when started that way. It stops when the night's results and next j
 all in, or at noon the next day.
 `.github/workflows/tests.yml` runs the test suite on every push that changes code.
 
-After each Scrape run, `alert.py` sends two kinds of alerts:
+After each Scrape run, `alert.py` sends these alerts:
 
 - **Data problems.** Errors, a fallback to the backup source, or a crash. A crash opens a
   `data-problem` issue straight away; other problems do once they last two runs in a row, so
   one network blip doesn't send anything. GitHub emails the issue to the owner, and the issue
   closes itself when a run comes back clean.
+- **After each draw**, once its results are stored and the next jackpot is posted: if the
+  verdict didn't change, "keep playing" the pick (or "still nothing worth playing" when both
+  are under the minimum). A changed verdict sends its own alert instead.
 - **Value alerts.** When the verdict changes (a game becomes worth playing, the pick switches
   games, or both fall under the $0.35 minimum), and when a draw is worth at least
   `VALUE_ALERT_THRESHOLD` per $1 for the whole ticket, every prize counted (a repository

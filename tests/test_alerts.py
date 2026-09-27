@@ -96,7 +96,7 @@ def test_threshold_alert_fires_once_per_draw():
                      "($12M Gold Ball, 9 balls left), above your $0.50 alert."]
     assert alerts.value_alerts(rich, doc("2026-09-25T04:17:00Z", best=model.LOTTO_649, g649_value=0.33, g649_all=0.53, balls=9)) == []
     next_draw = doc("2026-09-27T11:17:00Z", best=model.LOTTO_649, g649_value=0.38, g649_all=0.58, g649_draw=4455, balls=8)
-    assert len(alerts.value_alerts(rich, next_draw)) == 1
+    assert len(threshold_alerts(rich, next_draw)) == 1
 
 
 def test_threshold_is_on_the_whole_ticket_not_big_prizes():
@@ -109,8 +109,51 @@ def test_threshold_is_on_the_whole_ticket_not_big_prizes():
 
 def test_threshold_can_be_changed():
     before = doc("2026-09-23T11:17:00Z", max_draw=1272, max_value=0.35)
-    assert alerts.value_alerts(before, CLEAN_NOW, threshold=0.47)  # Lotto Max's whole ticket reaches $0.47 on draw 1273
-    assert not alerts.value_alerts(before, CLEAN_NOW, threshold=0.50)
+    assert threshold_alerts(before, CLEAN_NOW, threshold=0.47)  # Lotto Max's whole ticket reaches $0.47 on draw 1273
+    assert not threshold_alerts(before, CLEAN_NOW, threshold=0.50)
+
+
+def threshold_alerts(previous, current, **kwargs):
+    return [m for m in alerts.value_alerts(previous, current, **kwargs) if "alert." in m]
+
+
+# ---------- after each draw ----------
+
+def test_after_a_draw_says_keep_playing_the_same_pick():
+    # Saturday's 6/49 draw is done and #4455's jackpot is posted; Lotto Max is still the pick
+    after = doc("2026-09-27T05:40:00Z", g649_draw=4455)
+    assert alerts.value_alerts(CLEAN_NOW, after) == [
+        "After Saturday's Lotto 6/49 draw: keep playing Lotto Max: $0.37 back per $1 for Fri Sep 25 "
+        "($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
+    ]
+
+
+def test_after_a_draw_with_nothing_worth_playing_says_so():
+    before = doc("2026-09-26T23:37:00Z", max_value=0.30)
+    after = doc("2026-09-27T05:40:00Z", max_value=0.31, g649_draw=4455)
+    assert alerts.value_alerts(before, after) == [
+        "After Saturday's Lotto 6/49 draw: still nothing worth playing. The better one, Lotto Max, is at "
+        "$0.31 back per $1, under your $0.35 minimum."
+    ]
+
+
+def test_a_changed_pick_after_a_draw_sends_only_the_change():
+    after = doc("2026-09-27T05:40:00Z", best=model.LOTTO_649, max_value=0.36, g649_value=0.39, g649_draw=4455)
+    messages = alerts.value_alerts(CLEAN_NOW, after)
+    assert len(messages) == 1 and messages[0].startswith("Lotto 6/49 is now the better buy")
+
+
+def test_no_post_draw_message_without_a_new_draw():
+    assert alerts.value_alerts(CLEAN_BEFORE, CLEAN_NOW) == []  # the same draws, scraped again
+
+
+def test_post_draw_message_waits_for_the_next_jackpot():
+    waiting = doc("2026-09-27T03:10:00Z")
+    waiting[model.LOTTO_649]["draw_number"] = None  # result in, next jackpot not posted yet
+    assert alerts.value_alerts(CLEAN_NOW, waiting) == []
+    posted = doc("2026-09-27T05:40:00Z", g649_draw=4455)
+    assert len(alerts.value_alerts(waiting, posted)) == 1
+    assert alerts.value_alerts(posted, doc("2026-09-27T11:17:00Z", g649_draw=4455)) == []  # and only once
 
 
 class FakeGitHub:
