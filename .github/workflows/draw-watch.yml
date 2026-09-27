@@ -1,37 +1,44 @@
 name: Draw watch
 
-# On draw nights, one long job that picks up the results soon after they're posted.
-# Scheduled runs can start hours late, so instead of a run timed for the 10:30 PM
-# Eastern draw, this starts in the evening and keeps going for up to 6 hours:
-# watch.py sleeps until just after the draw, checks the lottery sites every 10
-# minutes, and starts the Scrape workflow (commit, redeploy, alerts) as soon as
-# there's anything new. The Scrape workflow's own schedule remains the fallback.
+# Updates the page soon after each draw (10:30 PM Eastern, Tue/Wed/Fri/Sat). GitHub starts
+# scheduled runs anywhere from minutes to hours late and sometimes skips them, so this is
+# scheduled several times each draw day, well ahead of the draw; the first run to start
+# keeps watch and later ones see it and exit. watch.py sleeps until just after the draw,
+# handing over to a fresh run (started by dispatch, so at once) before the 6-hour job
+# limit, then checks the lottery sites every 10 minutes and starts the Scrape workflow
+# (commit, redeploy, alerts) as soon as there's anything new. See watch.py.
 on:
   schedule:
-    - cron: "37 0 * * 0,3,4,6"  # the Tue/Wed/Fri/Sat draw evenings: 8:37 PM EDT / 7:37 PM EST
+    - cron: "7 16 * * 2,3,5,6"  # draw days, 12:07 PM EDT / 11:07 AM EST
+    - cron: "7 20 * * 2,3,5,6"  # backup: 4:07 PM EDT / 3:07 PM EST
+    - cron: "7 1 * * 0,3,4,6"   # backup: 9:07 PM EDT / 8:07 PM EST (the next day in UTC)
+    - cron: "7 5 * * 0,3,4,6"   # last resort after the draw: 1:07 AM EDT / 12:07 AM EST
   workflow_dispatch:
     inputs:
       now:
-        description: "Start checking at once instead of after draw time"
+        description: "Check at once, then carry on as usual"
         type: boolean
         default: true
       check_dispatch:
         description: "Only test that it can start the Scrape workflow"
         type: boolean
         default: false
+      handed_over_by:
+        description: "Set by watch.py: the run this one carries on from"
+        type: string
+        default: ""
 
 permissions:
   contents: read
-  actions: write  # start the Scrape workflow
+  actions: write  # start the Scrape workflow, and hand over to a fresh run
 
-concurrency:
-  group: draw-watch
-  cancel-in-progress: false
+# No concurrency group: watch.py itself makes later runs exit while one is watching,
+# which queued runs couldn't do.
 
 jobs:
   watch:
     runs-on: ubuntu-24.04  # pinned: unattended jobs shouldn't change OS under us
-    timeout-minutes: 355
+    timeout-minutes: 358  # watch.py hands over after 5.5 hours
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -42,4 +49,8 @@ jobs:
       - name: Watch for tonight's results
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -u watch.py ${{ inputs.now && '--now' || '' }} ${{ inputs.check_dispatch && '--check-dispatch' || '' }}
+        run: >-
+          python -u watch.py
+          ${{ inputs.now && '--now' || '' }}
+          ${{ inputs.check_dispatch && '--check-dispatch' || '' }}
+          ${{ inputs.handed_over_by && format('--handed-over-by {0}', inputs.handed_over_by) || '' }}

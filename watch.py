@@ -1,18 +1,25 @@
 """Catch a draw's results soon after they're posted, and update the page then.
 
-    python watch.py         wait until shortly after tonight's draw, then keep checking
+    python watch.py         watch tonight's draw: wait until just after it, then keep checking
     python watch.py --now   start checking at once (for a run started by hand)
 
-GitHub often starts scheduled workflows hours late, so the Scrape workflow's own
-post-draw runs can miss the evening. This runs as one long job, started before the
-draw: it sleeps until just after draw time, then scrapes every POLL_EVERY. When the
-lottery sites have something new, it starts the Scrape workflow (which commits the
-data, redeploys the page and sends alerts; runs started this way begin at once),
-waits for it to finish, and carries on until tonight's results and the next jackpot
-are both in, or its time runs out.
+GitHub starts scheduled workflows anywhere from minutes to hours late, and sometimes
+skips them, so no single scheduled run can be counted on to be there at draw time.
+Instead, the Draw watch workflow is scheduled several times on draw days, well ahead of
+the 10:30 PM Eastern draw, and the first run to start keeps watch:
 
-Needs GITHUB_TOKEN (with actions: write) and GITHUB_REPOSITORY, as set in the
-Draw watch workflow.
+- It sleeps until just after draw time. A job can only run for 6 hours, so when the draw
+  is further off than that, the run hands over before its time is up by starting a fresh
+  run of the workflow (runs started that way begin at once) and exits.
+- After the draw it scrapes every POLL_EVERY. When the lottery sites have something new
+  (not just a fresh timestamp), it starts the Scrape workflow, which commits the data,
+  redeploys the page and sends alerts, and waits for it.
+- It stops once the night's results and next jackpots are all stored, or at noon the
+  next day, after which the scheduled Scrape runs pick up the rest.
+
+Runs that start while another is already watching exit at once, so the extra schedule
+entries cost a minute each. Needs GITHUB_TOKEN (with actions: write), GITHUB_REPOSITORY
+and GITHUB_RUN_ID, as set in the Draw watch workflow.
 """
 import argparse
 import json
@@ -33,37 +40,34 @@ DATA_DIR = ROOT / "data"
 EASTERN = ZoneInfo("America/Toronto")
 DRAW_TIME = clock(22, 30)  # both games, Eastern
 FIRST_LOOK = timedelta(minutes=15)  # after the draw
+GIVE_UP = clock(12, 0)  # the next day, Eastern
+MAX_LEAD = timedelta(hours=14)  # don't start watching a draw further off than this
 POLL_EVERY = timedelta(minutes=10)
-RUN_BUDGET = timedelta(hours=5, minutes=40)  # the job's timeout is 6 hours
+RUN_BUDGET = timedelta(hours=5, minutes=30)  # then hand over; the job's timeout is 6 hours
 SCRAPE_WAIT = timedelta(minutes=15)  # longest to wait for a Scrape run to finish
 VOLATILE = {"scraped_at", "as_of"}  # change on every scrape, so they don't count as news
 API = "https://api.github.com"
 
 
-def tonight(now):
-    """The draw date being watched: today, or yesterday while the job runs past midnight."""
-    local = now.astimezone(EASTERN)
-    date = local.date()
-    return date - timedelta(days=1) if local.hour < 12 else date
+def game_settled(game, night, draws, next_doc):
+    """Whether `night`'s draw of `game` is stored and the game's next jackpot is posted."""
+    stored = any(d["game"] == game and d["draw_date"] == night.isoformat() for d in draws)
+    info = next_doc.get(game) or {}
+    posted = (info.get("draw_date") or "") > night.isoformat() and bool(info.get("draw_number"))
+    return stored and posted
 
 
-def watched_draws(next_doc, date):
-    """{game: draw_number} for the games whose next draw, per next.json, is on `date`."""
-    watched = {}
-    for game in model.GAMES:
-        info = next_doc.get(game) or {}
-        if info.get("draw_date") == date.isoformat() and info.get("draw_number"):
-            watched[game] = info["draw_number"]
-    return watched
-
-
-def settled(watched, draws, next_doc):
-    """True once every watched draw is stored and its game's next jackpot is posted."""
-    stored = {(d["game"], d["draw_number"]) for d in draws}
-    return all(
-        (game, number) in stored and ((next_doc.get(game) or {}).get("draw_number") or 0) > number
-        for game, number in watched.items()
-    )
+def pick_night(now, draws, next_doc):
+    """(night, games) to watch: last night's draws until noon if they're still unsettled,
+    otherwise tonight's. (None, []) when neither has a draw left to catch."""
+    today = now.astimezone(EASTERN).date()
+    nights = [today - timedelta(days=1), today] if now.astimezone(EASTERN).time() < GIVE_UP else [today]
+    for night in nights:
+        games = [g for g in model.GAMES if night.weekday() in model.DRAW_WEEKDAYS[g]]
+        pending = [g for g in games if not game_settled(g, night, draws, next_doc)]
+        if pending:
+            return night, pending
+    return None, []
 
 
 def without_volatile(doc):
@@ -82,6 +86,11 @@ def is_news(before, after):
 
 def read_data():
     return {name: json.loads((DATA_DIR / name).read_text(encoding="utf-8")) for name in ("next.json", "draws.json")}
+
+
+def read_state():
+    """(draws, next_doc) as stored in the checkout."""
+    return store.load_draws(DATA_DIR / "draws.json"), read_data()["next.json"]
 
 
 def git(*args):
@@ -105,61 +114,110 @@ def found_news():
         git("checkout", "--", "data")
 
 
+def utcnow():
+    return datetime.now(timezone.utc)
+
+
+def say(text):
+    print(f"{utcnow().astimezone(EASTERN):%a %H:%M} ET  {text}", flush=True)
+
+
 class GitHub:
-    def __init__(self, token, repo):
+    def __init__(self, token, repo, run_id=None):
         self.repo = repo
+        self.run_id = int(run_id) if run_id else None
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
+
+    def workflow(self, name):
+        return f"{API}/repos/{self.repo}/actions/workflows/{name}"
+
+    def dispatch(self, name, inputs=None):
+        body = {"ref": "main", **({"inputs": inputs} if inputs else {})}
+        self.session.post(f"{self.workflow(name)}/dispatches", json=body, timeout=30).raise_for_status()
 
     def run_scrape(self):
         """Start the Scrape workflow and wait for it; True if it finished successfully."""
         started = datetime.now(timezone.utc) - timedelta(seconds=5)
-        url = f"{API}/repos/{self.repo}/actions/workflows/scrape.yml"
-        self.session.post(f"{url}/dispatches", json={"ref": "main"}, timeout=30).raise_for_status()
+        self.dispatch("scrape.yml")
         deadline = datetime.now(timezone.utc) + SCRAPE_WAIT
         while datetime.now(timezone.utc) < deadline:
             time.sleep(20)
-            runs = self.session.get(f"{url}/runs", params={"event": "workflow_dispatch", "per_page": 5}, timeout=30)
+            runs = self.session.get(f"{self.workflow('scrape.yml')}/runs",
+                                    params={"event": "workflow_dispatch", "per_page": 5}, timeout=30)
             runs.raise_for_status()
             for run in runs.json()["workflow_runs"]:
                 created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
                 if created >= started and run["status"] == "completed":
-                    print(f"Scrape run {run['html_url']}: {run['conclusion']}", flush=True)
+                    say(f"Scrape run {run['html_url']}: {run['conclusion']}")
                     return run["conclusion"] == "success"
-        print("Scrape run didn't finish in time; carrying on", flush=True)
+        say("Scrape run didn't finish in time; carrying on")
         return False
+
+    def older_watcher(self, handed_over_by=None):
+        """The URL of an earlier Draw watch run still in progress, if any (ignoring the run
+        that handed over to this one, which may not have finished exiting yet)."""
+        runs = self.session.get(f"{self.workflow('draw-watch.yml')}/runs",
+                                params={"status": "in_progress", "per_page": 20}, timeout=30)
+        runs.raise_for_status()
+        for run in runs.json()["workflow_runs"]:
+            if run["id"] < (self.run_id or 0) and run["id"] != handed_over_by:
+                return run["html_url"]
+        return None
+
+    def hand_over(self):
+        """Start a fresh Draw watch run to carry on from this one."""
+        self.dispatch("draw-watch.yml", {"now": "false", "handed_over_by": str(self.run_id or "")})
+        say("Handed over to a fresh run")
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--now", action="store_true", help="start checking at once instead of after draw time")
+    parser.add_argument("--handed-over-by", type=int, help="the run this one carries on from")
     parser.add_argument("--check-dispatch", action="store_true", help="just start one Scrape run and wait for it, to test access")
     args = parser.parse_args(argv)
 
+    github = GitHub(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_RUN_ID"))
     if args.check_dispatch:
-        ok = GitHub(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"]).run_scrape()
-        return 0 if ok else 1
+        return 0 if github.run_scrape() else 1
 
-    started = datetime.now(timezone.utc)
-    deadline = started + RUN_BUDGET
-    date = tonight(started)
-    watched = watched_draws(read_data()["next.json"], date)
-    if not watched:
-        print(f"No draw to watch on {date}: next.json lists none for that date.")
+    started = utcnow()
+    budget_end = started + RUN_BUDGET
+    night, games = pick_night(started, *read_state())
+    if not night:
+        say("No draw to watch: last night's results are in and there's no draw tonight.")
         return 0
-    names = ", ".join(f"{model.GAME_NAMES[g]} #{n}" for g, n in watched.items())
-    print(f"Watching {names} ({date})", flush=True)
+    wake = datetime.combine(night, DRAW_TIME, EASTERN) + FIRST_LOOK
+    give_up = datetime.combine(night + timedelta(days=1), GIVE_UP, EASTERN)
+    if not args.now and wake - started > MAX_LEAD:
+        say(f"The draw is more than {MAX_LEAD.seconds // 3600} hours off; a later scheduled run will watch it.")
+        return 0
+    other = github.older_watcher(args.handed_over_by)
+    if other:
+        say(f"Another run is already watching: {other}")
+        return 0
+    say(f"Watching {night:%a %b %d}: {', '.join(model.GAME_NAMES[g] for g in games)}")
 
-    wake = datetime.combine(date, DRAW_TIME, EASTERN) + FIRST_LOOK
-    if not args.now and wake > started:
-        print(f"Sleeping until {wake.isoformat(timespec='minutes')}", flush=True)
-        time.sleep((wake - started).total_seconds())
-
-    github = GitHub(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"])
+    check_at_once = args.now  # a run started by hand checks straight away, then carries on as usual
     while True:
+        now = utcnow()
+        if now < wake and not check_at_once:
+            if wake - now > MAX_LEAD:
+                say("The draw is still hours off; a scheduled run will watch it.")
+                return 0
+            if wake > budget_end:
+                say(f"The draw is more than {RUN_BUDGET.seconds // 3600} hours off; sleeping, then handing over")
+                time.sleep(max(0.0, (budget_end - now).total_seconds()))
+                github.hand_over()
+                return 0
+            say(f"Sleeping until {wake.astimezone(EASTERN):%H:%M} ET")
+            time.sleep((wake - now).total_seconds())
+        check_at_once = False
         sync()
-        if settled(watched, store.load_draws(DATA_DIR / "draws.json"), read_data()["next.json"]):
-            print("Results and next jackpots are in; done.")
+        draws, next_doc = read_state()
+        if all(game_settled(g, night, draws, next_doc) for g in games):
+            say("Results and next jackpots are in; done.")
             return 0
         # After an update that stored something, check again at once: the next jackpot often
         # follows the results closely. Otherwise wait, so a failing update isn't retried nonstop.
@@ -169,8 +227,12 @@ def main(argv=None):
                 sync()
                 if git("rev-parse", "HEAD") != head:
                     continue
-        if datetime.now(timezone.utc) + POLL_EVERY > deadline:
-            print("Out of time; the scheduled Scrape runs will pick up the rest.")
+        now = utcnow()
+        if now + POLL_EVERY > give_up:
+            say("Giving up for the night; the scheduled Scrape runs will pick up the rest.")
+            return 0
+        if now + POLL_EVERY > budget_end:
+            github.hand_over()
             return 0
         time.sleep(POLL_EVERY.total_seconds())
 
