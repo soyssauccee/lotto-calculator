@@ -7,7 +7,10 @@ from lottocalc import alerts, model
 
 
 def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.37, g649_value=0.22,
-        max_draw=1273, g649_draw=4454, balls=29, legacy=False):
+        max_draw=1273, g649_draw=4454, balls=29, legacy=False, max_all=None, g649_all=None):
+    """A next.json; whole-ticket values default to $0.10 over the big-prize ones."""
+    max_all = round(max_value + 0.10, 4) if max_all is None else max_all
+    g649_all = round(g649_value + 0.10, 4) if g649_all is None else g649_all
     runner_up = g649_value if best == model.LOTTO_MAX else max_value
     recommendation = {"top_prizes": {"game": best, "per_dollar": max(max_value, g649_value), "runner_up_per_dollar": runner_up}}
     if not legacy:  # next.json files from before the minimum lack these
@@ -15,9 +18,9 @@ def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.37, g64
     return {
         "scraped_at": stamp,
         model.LOTTO_MAX: {"draw_number": max_draw, "draw_date": "2026-09-25", "jackpot": 60_000_000,
-                          "maxmillions_count": 6, "value": {"per_dollar": max_value}},
+                          "maxmillions_count": 6, "value": {"per_dollar": max_value, "per_dollar_all_prizes": max_all}},
         model.LOTTO_649: {"draw_number": g649_draw, "draw_date": "2026-09-26", "gold_ball_amount": 12_000_000,
-                          "balls_remaining": balls, "value": {"per_dollar": g649_value}},
+                          "balls_remaining": balls, "value": {"per_dollar": g649_value, "per_dollar_all_prizes": g649_all}},
         "recommendation": recommendation,
         "errors": list(errors),
         "warnings": list(warnings),
@@ -87,19 +90,27 @@ def test_next_json_from_before_the_minimum_still_compares():
 
 
 def test_threshold_alert_fires_once_per_draw():
-    rich = doc("2026-09-24T21:17:00Z", best=model.LOTTO_649, g649_value=0.52, balls=9)
-    first = alerts.value_alerts(doc("2026-09-24T11:17:00Z", best=model.LOTTO_649, g649_value=0.45, balls=9), rich)
-    assert first == ["Lotto 6/49 is worth $0.52 back per $1 for the 2026-09-26 draw "
+    rich = doc("2026-09-24T21:17:00Z", best=model.LOTTO_649, g649_value=0.32, g649_all=0.52, balls=9)
+    first = alerts.value_alerts(doc("2026-09-24T11:17:00Z", best=model.LOTTO_649, g649_value=0.26, g649_all=0.45, balls=9), rich)
+    assert first == ["Lotto 6/49's whole ticket is worth $0.52 back per $1 for the 2026-09-26 draw "
                      "($12M Gold Ball, 9 balls left), above your $0.50 alert."]
-    assert alerts.value_alerts(rich, doc("2026-09-25T04:17:00Z", best=model.LOTTO_649, g649_value=0.53, balls=9)) == []
-    next_draw = doc("2026-09-27T11:17:00Z", best=model.LOTTO_649, g649_value=0.58, g649_draw=4455, balls=8)
+    assert alerts.value_alerts(rich, doc("2026-09-25T04:17:00Z", best=model.LOTTO_649, g649_value=0.33, g649_all=0.53, balls=9)) == []
+    next_draw = doc("2026-09-27T11:17:00Z", best=model.LOTTO_649, g649_value=0.38, g649_all=0.58, g649_draw=4455, balls=8)
     assert len(alerts.value_alerts(rich, next_draw)) == 1
+
+
+def test_threshold_is_on_the_whole_ticket_not_big_prizes():
+    # $0.33 in big prizes is under the $0.50 alert, but $0.53 for the whole ticket, which is what counts
+    before = doc("2026-09-24T11:17:00Z", max_value=0.30, max_all=0.49, max_draw=1273)
+    after = doc("2026-09-24T21:17:00Z", max_value=0.33, max_all=0.53, max_draw=1273)
+    messages = alerts.value_alerts(before, after)
+    assert any("whole ticket is worth $0.53" in m for m in messages)
 
 
 def test_threshold_can_be_changed():
     before = doc("2026-09-23T11:17:00Z", max_draw=1272, max_value=0.35)
-    assert alerts.value_alerts(before, CLEAN_NOW, threshold=0.37)  # Lotto Max reaches $0.37 on draw 1273
-    assert not alerts.value_alerts(before, CLEAN_NOW, threshold=0.40)
+    assert alerts.value_alerts(before, CLEAN_NOW, threshold=0.47)  # Lotto Max's whole ticket reaches $0.47 on draw 1273
+    assert not alerts.value_alerts(before, CLEAN_NOW, threshold=0.50)
 
 
 class FakeGitHub:

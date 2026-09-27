@@ -192,7 +192,8 @@ After each Scrape run, `alert.py` sends two kinds of alerts:
   closes itself when a run comes back clean.
 - **Value alerts.** When the verdict changes (a game becomes worth playing, the pick switches
   games, or both fall under the $0.35 minimum), and when a draw is worth at least
-  `VALUE_ALERT_THRESHOLD` per $1 (a repository variable, $0.50 by default). Each draw alerts at
+  `VALUE_ALERT_THRESHOLD` per $1 for the whole ticket, every prize counted (a repository
+  variable, $0.50 by default, matching the whole-ticket chart's line). Each draw alerts at
   most once for the threshold. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
   they are posted as comments on a `value-alert` issue. With ntfy set up, opening and closing a
   `data-problem` issue is pushed to the phone too.

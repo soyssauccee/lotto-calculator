@@ -45,8 +45,8 @@ def verdict(doc):
 
 
 def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
-    """Messages for a change of verdict (play one game, the other, or skip), and for a draw worth
-    `threshold` or more per $1."""
+    """Messages for a change of verdict (play one game, the other, or skip; judged on big prizes),
+    and for a draw whose whole ticket, every prize counted, is worth `threshold` or more per $1."""
     if not current:
         return []
     previous = previous or {}
@@ -75,16 +75,16 @@ def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
             )
     for game in model.GAMES:
         info = current.get(game) or {}
-        worth = (info.get("value") or {}).get("per_dollar")
+        worth = (info.get("value") or {}).get("per_dollar_all_prizes")
         if worth is None or worth < threshold:
             continue
         earlier = previous.get(game) or {}
-        earlier_worth = (earlier.get("value") or {}).get("per_dollar")
+        earlier_worth = (earlier.get("value") or {}).get("per_dollar_all_prizes")
         if earlier.get("draw_number") == info.get("draw_number") and earlier_worth is not None and earlier_worth >= threshold:
             continue  # already alerted for this draw
         alerts.append(
-            f"{model.GAME_NAMES[game]} is worth ${worth:.2f} back per $1 for the {info['draw_date']} draw "
-            f"({_prizes(game, info)}), above your ${threshold:.2f} alert."
+            f"{model.GAME_NAMES[game]}'s whole ticket is worth ${worth:.2f} back per $1 for the {info['draw_date']} "
+            f"draw ({_prizes(game, info)}), above your ${threshold:.2f} alert."
         )
     return alerts
 
