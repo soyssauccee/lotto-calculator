@@ -17,7 +17,7 @@ Screen makes it an app).
 | M4 | Sales forecast model | done |
 | M5 | Value engine | done |
 | M6 | Phone web page | done |
-| M7 | Scheduled runs and alerts | running; done after a week unattended |
+| M7 | Scheduled runs and alerts | done |
 
 ## Setup
 
@@ -171,6 +171,7 @@ redeploys the page. Times are UTC in the file:
 - every morning at 7:17 AM Eastern
 - 5:17 PM Eastern on draw days (Tue, Wed, Fri, Sat), since jackpot estimates sometimes rise
 - about 1¾ and 4¼ hours after each 10:30 PM draw, while daylight time is in effect
+- 7:47 PM Eastern on Sundays, Mondays and Thursdays, so every day has an evening run too
 
 GitHub often starts scheduled runs hours late, so those can't be relied on to catch a draw
 the same night (here they have started 0.5 to 5 hours late, and some never ran).
