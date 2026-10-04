@@ -193,6 +193,26 @@ def test_unreadable_draw_is_reported_and_not_stored():
     assert any("2026-09-19 not stored yet" in w for w in report.warnings)
 
 
+def test_a_listed_draw_is_waited_for_until_its_prizes_are_posted():
+    # WCLC lists Tuesday's Lotto Max #1272 about 1¼ hours after the 10:30 PM draw, but serves a
+    # "not available" notice for its prizes until about 2 hours after
+    pages = LISTINGS | {wclc.DETAILS_URLS[model.LOTTO_MAX].format(1272): "wclc_max_not_posted.html"}
+    draws = [stored(model.LOTTO_649, 4452), stored(model.LOTTO_MAX, 1271)]
+    that_night = datetime(2026, 9, 23, 3, 50, tzinfo=timezone.utc)  # 11:50 PM Eastern
+    next_doc, report = scrape.update(FakeSession(pages), draws, None, that_night)
+
+    assert (report.errors, report.pending) == ([], ["Lotto Max draw 1272"])
+    assert numbers(draws, model.LOTTO_MAX) == [1271]
+    assert next_doc["errors"] == []
+    assert "Lotto Max draw 1272: listed, but its prizes aren't posted yet" in scrape.summarize(next_doc, report, 3)
+
+    # still missing the next afternoon: something is wrong
+    next_day = datetime(2026, 9, 23, 17, 0, tzinfo=timezone.utc)  # 1 PM Eastern
+    _, report = scrape.update(FakeSession(pages), draws, None, next_day)
+    assert report.errors == ["Lotto Max draw 1272: prize breakdown not posted yet"]
+    assert report.pending == []
+
+
 def test_a_surprise_error_in_one_draw_is_reported_and_the_run_carries_on(monkeypatch):
     real_parse = wclc.parse_prize_details
 

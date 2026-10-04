@@ -11,7 +11,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 
 from .. import model
-from . import ParseError, money, text
+from . import NotPosted, ParseError, money, text
 
 BASE_URL = "https://www.wclc.com"
 LISTING_URLS = {
@@ -80,6 +80,9 @@ def parse_prize_details(html, game, draw_number):
     soup = BeautifulSoup(html, "html.parser")
     heading = text(soup.find("h2"))
     if _DETAILS_HEADINGS[game] not in heading.upper():
+        # WCLC lists a draw before its prizes are up, and serves this notice for it meanwhile
+        if "prize information is not available" in text(soup).lower():
+            raise NotPosted("prize breakdown not posted yet")
         raise ParseError(f"expected a {_DETAILS_HEADINGS[game]} prize breakdown, got {heading!r}")
     numbers, bonus = _winning_numbers(soup.select_one("ul.pastWinNumbers"))
     record = {

@@ -6,6 +6,10 @@ class ParseError(ValueError):
     """A page did not have the structure its parser expects."""
 
 
+class NotPosted(ParseError):
+    """The site says a draw's results aren't available (yet)."""
+
+
 def text(element):
     """Visible text of an element with whitespace collapsed ('' for None)."""
     if element is None:

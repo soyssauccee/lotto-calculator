@@ -1,7 +1,7 @@
 import pytest
 
 from lottocalc import model
-from lottocalc.sources import ParseError, wclc
+from lottocalc.sources import NotPosted, ParseError, wclc
 
 
 @pytest.mark.parametrize("listing", ["wclc_649_listing.html", "wclc_max_listing.html"])
@@ -111,3 +111,9 @@ def test_breakdown_for_the_wrong_game_is_rejected(page):
 def test_empty_breakdown_is_rejected():
     with pytest.raises(ParseError):
         wclc.parse_prize_details("", model.LOTTO_649, 4453)
+
+
+def test_breakdown_not_posted_yet_says_so(page):
+    # WCLC's notice for a draw whose prizes aren't up yet (saved for a draw not yet held)
+    with pytest.raises(NotPosted):
+        wclc.parse_prize_details(page("wclc_max_not_posted.html"), model.LOTTO_MAX, 1276)

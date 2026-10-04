@@ -113,16 +113,16 @@ def _after_draw(previous, current, finished, now):
     held = " and ".join(
         f"{date.fromisoformat(previous[g]['draw_date']):%A}'s {model.GAME_NAMES[g]}" if previous[g].get("draw_date")
         else model.GAME_NAMES[g]
-        for g in finished
-    )
+        for g in sorted(finished, key=lambda g: previous[g].get("draw_date") or "")
+    ) + (" draws" if len(finished) > 1 else " draw")
     recommendation = current["recommendation"]
     top = recommendation["top_prizes"]
     best, other = top["game"], model.LOTTO_649 if top["game"] == model.LOTTO_MAX else model.LOTTO_MAX
     if now == "skip":
-        return (f"After {held} draw: still nothing worth playing. The better one, {model.GAME_NAMES[best]}, is at "
+        return (f"After {held}: still nothing worth playing. The better one, {model.GAME_NAMES[best]}, is at "
                 f"${top['per_dollar']:.2f} back per $1, under your ${recommendation['min_per_dollar']:.2f} minimum.")
     info = current[best]
-    return (f"After {held} draw: keep playing {model.GAME_NAMES[best]}: ${top['per_dollar']:.2f} back per $1 for "
+    return (f"After {held}: keep playing {model.GAME_NAMES[best]}: ${top['per_dollar']:.2f} back per $1 for "
             f"{date.fromisoformat(info['draw_date']):%a %b %d} ({_prizes(best, info)}). "
             f"{model.GAME_NAMES[other]} is at ${top['runner_up_per_dollar']:.2f}.")
 

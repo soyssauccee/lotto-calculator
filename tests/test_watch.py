@@ -54,6 +54,10 @@ def test_only_real_changes_count_as_news():
     restamped["next.json"]["scraped_at"] = "2026-09-27T03:00:00Z"
     restamped["next.json"]["lotto649"]["as_of"] = "2026-09-27T03:00:00Z"
     assert not watch.is_news(before, restamped)
+    # after midnight, a scrape notes the draw has passed while its results are pending
+    noted = {"next.json": next_doc(), "draws.json": {"draws": [WEDNESDAY_649]}}
+    noted["next.json"]["warnings"] = ["Lotto 6/49: the 2026-09-26 draw has passed but the source hasn't moved on"]
+    assert not watch.is_news(before, noted)
     assert watch.is_news(before, {"next.json": next_doc(), "draws.json": {"draws": [WEDNESDAY_649, SATURDAY_649]}})
     assert watch.is_news(before, {"next.json": next_doc(g649=(4455, "2026-09-30")), "draws.json": before["draws.json"]})
 

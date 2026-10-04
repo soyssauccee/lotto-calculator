@@ -1,11 +1,12 @@
 """Game rules shared by every source, and the checks that catch parser drift."""
 import re
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 
 LOTTO_649 = "lotto649"
 LOTTO_MAX = "lottomax"
 GAMES = (LOTTO_649, LOTTO_MAX)
 GAME_NAMES = {LOTTO_649: "Lotto 6/49", LOTTO_MAX: "Lotto Max"}
+DRAW_TIME = time(22, 30)  # both games, Eastern
 
 # Prize categories, top to bottom; the keys of tier_winners and tier_prizes.
 TIERS = {

@@ -49,8 +49,9 @@ jobs:
       - name: Watch for tonight's results
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          HANDED_OVER_BY: ${{ inputs.handed_over_by }}  # through the environment, so it can't become shell code
         run: >-
           python -u watch.py
           ${{ inputs.now && '--now' || '' }}
           ${{ inputs.check_dispatch && '--check-dispatch' || '' }}
-          ${{ inputs.handed_over_by && format('--handed-over-by {0}', inputs.handed_over_by) || '' }}
+          ${HANDED_OVER_BY:+--handed-over-by "$HANDED_OVER_BY"}

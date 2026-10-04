@@ -25,6 +25,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main  # not the commit from when the run was queued: if it waited for another run, start from that one's data
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"

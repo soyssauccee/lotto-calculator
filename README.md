@@ -39,7 +39,9 @@ py -3.13 -m venv .venv
 ```
 
 `scrape.py` exits with status 1 if anything could not be fetched or parsed. The data files
-then keep their last good values and `next.json` lists the errors.
+then keep their last good values and `next.json` lists the errors. One exception: WCLC lists
+each draw about 40 minutes before it posts the prizes, so a listed draw without them is only
+noted, and becomes an error if they are still missing 12 hours after the draw.
 
 ## Data
 
@@ -98,16 +100,20 @@ fitted on what is known before the draw:
 The fit is then nudged by 0.7 × the average miss on the last 4 draws, because sales drift
 in runs.
 
-Walk-forward backtest, where each draw is predicted only from the draws before it:
+Walk-forward backtest, where each draw is predicted only from the draws before it (as of
+October 3, 2026):
 
 | | Draws | Avg error | Median | Within ±15% | 80% range held |
 |---|---|---|---|---|---|
-| Lotto 6/49 | 321 | 2.8% | 2.1% | 98.8% | 82% |
-| Lotto Max | 31 | 2.2% | 1.7% | 100% | 91% |
+| Lotto 6/49 | 323 | 2.8% | 2.1% | 98.8% | 82% |
+| Lotto Max | 34 | 2.5% | 2.4% | 100% | 71% |
 
 6/49 errors are larger on special draws (5.0% with ≤5 balls, a Super Draw or the holidays,
 vs 2.3% otherwise), so those draws get their own, wider range. Upcoming Super Draws are not
-announced anywhere this project can read, so forecasts assume a normal draw.
+announced anywhere this project can read, so forecasts assume a normal draw. Lotto Max's
+$60M–$70M draws in late September sold 4.6–6% more than forecast, above any jackpot its
+current format had seen; that barely matters for its value, which a 6% sales miss moves by
+under 1%.
 
 ## Value
 
@@ -175,7 +181,7 @@ redeploys the page. Times are UTC in the file:
 - 7:47 PM Eastern on Sundays, Mondays and Thursdays, so every day has an evening run too
 
 GitHub often starts scheduled runs hours late, so those can't be relied on to catch a draw
-the same night (here they have started 0.5 to 5 hours late, and some never ran).
+the same night (here they have started 0.5 to 7 hours late, and some never ran).
 `.github/workflows/draw-watch.yml` covers that. It is scheduled four times each draw day,
 from midday on, and the first run to start keeps watch while later ones see it and exit.
 `watch.py` sleeps until just after the draw; since a job can only run for 6 hours, it hands

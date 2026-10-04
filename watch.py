@@ -38,14 +38,15 @@ from lottocalc import model, store
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 EASTERN = ZoneInfo("America/Toronto")
-DRAW_TIME = clock(22, 30)  # both games, Eastern
 FIRST_LOOK = timedelta(minutes=15)  # after the draw
 GIVE_UP = clock(12, 0)  # the next day, Eastern
 MAX_LEAD = timedelta(hours=14)  # don't start watching a draw further off than this
 POLL_EVERY = timedelta(minutes=10)
 RUN_BUDGET = timedelta(hours=5, minutes=30)  # then hand over; the job's timeout is 6 hours
 SCRAPE_WAIT = timedelta(minutes=15)  # longest to wait for a Scrape run to finish
-VOLATILE = {"scraped_at", "as_of"}  # change on every scrape, so they don't count as news
+# Fields whose changes aren't news: the timestamps change on every scrape, and warnings (like
+# "the draw has passed" while its results are pending) change nothing on the page.
+NOT_NEWS = {"scraped_at", "as_of", "warnings"}
 API = "https://api.github.com"
 
 
@@ -70,18 +71,18 @@ def pick_night(now, draws, next_doc):
     return None, []
 
 
-def without_volatile(doc):
-    """A copy of a JSON document without the fields that change on every scrape."""
+def newsworthy(doc):
+    """A copy of a JSON document without the NOT_NEWS fields."""
     if isinstance(doc, dict):
-        return {k: without_volatile(v) for k, v in doc.items() if k not in VOLATILE}
+        return {k: newsworthy(v) for k, v in doc.items() if k not in NOT_NEWS}
     if isinstance(doc, list):
-        return [without_volatile(v) for v in doc]
+        return [newsworthy(v) for v in doc]
     return doc
 
 
 def is_news(before, after):
     """Whether a scrape found anything new: {name: parsed JSON} before and after."""
-    return any(without_volatile(before[name]) != without_volatile(after[name]) for name in before)
+    return any(newsworthy(before[name]) != newsworthy(after[name]) for name in before)
 
 
 def read_data():
@@ -188,7 +189,7 @@ def main(argv=None):
     if not night:
         say("No draw to watch: last night's results are in and there's no draw tonight.")
         return 0
-    wake = datetime.combine(night, DRAW_TIME, EASTERN) + FIRST_LOOK
+    wake = datetime.combine(night, model.DRAW_TIME, EASTERN) + FIRST_LOOK
     give_up = datetime.combine(night + timedelta(days=1), GIVE_UP, EASTERN)
     if not args.now and wake - started > MAX_LEAD:
         say(f"The draw is more than {MAX_LEAD.seconds // 3600} hours off; a later scheduled run will watch it.")

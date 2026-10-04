@@ -11,13 +11,13 @@ raise an alert and the page can show that its numbers are stale.
 import argparse
 import sys
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from lottocalc import forecast, model, sales, store, value
 from lottocalc.http import FetchError, PoliteSession
-from lottocalc.sources import ParseError, lotterycanada, wclc
+from lottocalc.sources import NotPosted, ParseError, lotterycanada, wclc
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 EASTERN = ZoneInfo("America/Toronto")
@@ -25,6 +25,9 @@ FIRST_RUN_DRAWS = 8  # with no history stored yet, take the draws on the listing
 MAX_CATCH_UP = 30  # a longer gap is a job for the backfill
 CHECKPOINT_EVERY = 25  # during a long catch-up, save after this many new draws
 BACKFILL_DELAY = 2.0  # seconds between requests during a backfill
+# WCLC lists a draw about 1¼ hours after it but posts the prizes about 2 hours after. Until
+# this long after the draw, a listed draw without its prizes is waited for, not an error.
+POSTING_GRACE = timedelta(hours=12)
 
 
 @dataclass
@@ -32,6 +35,7 @@ class Report:
     errors: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
     added: list = field(default_factory=list)  # (game, draw_number, draw_date)
+    pending: list = field(default_factory=list)  # draws listed whose prizes aren't posted yet
 
 
 def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, backfill=False, checkpoint=None):
@@ -76,7 +80,7 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         report.warnings.append(sidebar_problem)
 
     for game, listing in listings.items():
-        _catch_up(session, game, listing, draws, stamp, report, first_run_draws, backfill, checkpoint)
+        _catch_up(session, game, listing, draws, now, stamp, report, first_run_draws, backfill, checkpoint)
 
     next_doc = {"scraped_at": stamp}
     today = now.astimezone(EASTERN).date()
@@ -119,9 +123,10 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
     return next_doc, report
 
 
-def _catch_up(session, game, listing, draws, stamp, report, first_run_draws, backfill, checkpoint):
+def _catch_up(session, game, listing, draws, now, stamp, report, first_run_draws, backfill, checkpoint):
     """Fetch every draw up to the newest listed one that isn't stored, filling gaps too."""
     name = model.GAME_NAMES[game]
+    listed = {item["draw_number"]: item["draw_date"] for item in listing}
     have = {d["draw_number"] for d in draws if d["game"] == game}
     latest = max(item["draw_number"] for item in listing)
     if backfill or have:
@@ -139,7 +144,10 @@ def _catch_up(session, game, listing, draws, stamp, report, first_run_draws, bac
             html = session.get(wclc.DETAILS_URLS[game].format(number))
             record = wclc.parse_prize_details(html, game, number)
         except Exception as exc:
-            report.errors.append(f"{name} draw {number}: {_problem(exc)}")
+            if isinstance(exc, NotPosted) and _just_drawn(listed.get(number), now):
+                report.pending.append(f"{name} draw {number}")  # a later run stores it
+            else:
+                report.errors.append(f"{name} draw {number}: {_problem(exc)}")
             continue
         problems = model.check_draw(record)
         if problems:
@@ -151,6 +159,14 @@ def _catch_up(session, game, listing, draws, stamp, report, first_run_draws, bac
         if checkpoint and len(report.added) % CHECKPOINT_EVERY == 0:
             checkpoint(draws)
             print(f"  {name}: saved through draw {number} ({len(report.added)} new so far)", flush=True)
+
+
+def _just_drawn(draw_date, now):
+    """Whether a draw on `draw_date` (None if unknown) was held less than POSTING_GRACE ago."""
+    if not draw_date:
+        return False
+    held = datetime.combine(date.fromisoformat(draw_date), model.DRAW_TIME, EASTERN)
+    return now - held < POSTING_GRACE
 
 
 def _problem(exc):
@@ -221,6 +237,7 @@ def summarize(next_doc, report, requests_made):
             lines.append(f"{model.GAME_NAMES[game]}: added {len(added)} draw(s), #{added[0]}-#{added[-1]}")
     if not report.added:
         lines.append("No new draws.")
+    lines += [f"{p}: listed, but its prizes aren't posted yet" for p in report.pending]
     lines += [f"WARNING: {w}" for w in report.warnings]
     lines += [f"ERROR: {e}" for e in report.errors]
     lines.append(f"{requests_made} request(s) made.")

@@ -137,6 +137,15 @@ def test_after_a_draw_with_nothing_worth_playing_says_so():
     ]
 
 
+def test_two_draws_stored_by_one_run_share_one_message():
+    # say a night's watch failed: Friday's Lotto Max and Saturday's 6/49 arrive together
+    after = doc("2026-09-27T11:17:00Z", max_draw=1274, g649_draw=4455)
+    assert alerts.value_alerts(CLEAN_NOW, after) == [
+        "After Friday's Lotto Max and Saturday's Lotto 6/49 draws: keep playing Lotto Max: $0.37 back per $1 "
+        "for Fri Sep 25 ($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
+    ]
+
+
 def test_a_changed_pick_after_a_draw_sends_only_the_change():
     after = doc("2026-09-27T05:40:00Z", best=model.LOTTO_649, max_value=0.36, g649_value=0.39, g649_draw=4455)
     messages = alerts.value_alerts(CLEAN_NOW, after)
