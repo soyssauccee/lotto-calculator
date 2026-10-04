@@ -22,6 +22,7 @@ const REFRESH_AFTER_MS = 5 * 60 * 1000; // when the page comes back into view
 const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
 const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
+const MAX_TICKET_PLAYS = { lottomax: 5, lotto649: 10 }; // the most plays one ticket holds: $30 either way
 const DEFAULT_MINIMUM = 0.35; // matches MIN_WORTH_PLAYING in lottocalc/value.py
 const WHOLE_TICKET_MINIMUM = 0.5; // the whole-ticket guide: the dashed line on its chart and bars
 const GOLD_BALL_STEP = 2e6; // each white ball adds $2M (GOLD_BALL_STEP in lottocalc/model.py)
@@ -279,10 +280,13 @@ function gameHtml(game, info, basis) {
     ? `${perDollar(low)}–${perDollar(high)} across the sales forecast`
     : "Barely moves with sales";
 
-  const plays6 = 6 / value.price;
+  // Odds for one play at the game's own price, and for a full ticket: a ticket's plays carry
+  // different numbers (and Gold Ball Draw Numbers), so n plays have n times the chance.
   const odds = value.odds_one_in;
-  const perPlay = (n) => (plays6 > 1 ? `${oneIn(n)} per $${value.price} play` : `One $${value.price} play`);
-  const row = (label, main, detail) => `<li><span>${label}</span><b>${main}</b><small>${detail}</small></li>`;
+  const price = value.price;
+  const plays = MAX_TICKET_PLAYS[game];
+  const ticket = `max $${plays * price} ticket`;
+  const row = (label, main, detail) => `<li><span>${label}</span><b>${main}</b>${detail ? `<small>${detail}</small>` : ""}</li>`;
   const notes = [];
   if (forecast.assumes_no_super_draw) notes.push("Assumes a regular draw: Super Draws aren't announced where this page can read them.");
 
@@ -300,8 +304,10 @@ function gameHtml(game, info, basis) {
         <ul class="list parts">${legend}</ul>
       </div>
       <ul class="list facts">
-        ${row("Jackpot odds for $6", oneIn(odds.jackpot / plays6), perPlay(odds.jackpot))}
-        ${row("$1M or more for $6", oneIn(odds.million_plus / plays6), perPlay(odds.million_plus))}
+        ${row("Jackpot odds", oneIn(odds.jackpot), `One $${price} play`)}
+        ${row("Jackpot odds", oneIn(odds.jackpot / plays), `A ${ticket} (${plays} plays)`)}
+        ${row("$1M or more", oneIn(odds.million_plus), `One $${price} play`)}
+        ${row("$1M or more", oneIn(odds.million_plus / plays), `A ${ticket} (${plays} plays)`)}
         ${row("Sales forecast", `${playsText(forecast.plays)} plays`, `${playsText(forecast.low)}–${playsText(forecast.high)} likely`)}
         ${row("Forecast accuracy", `±${(forecast.backtest_mape * 100).toFixed(1)}%`, "Typical miss, backtested")}
       </ul>

@@ -149,7 +149,8 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
 `data/next.json` and `data/draws.json` and shows:
 
 - the verdict and the value gap, with a Big prizes / All prizes toggle
-- a card per game: prizes, value per $1 with its range and parts, odds for $6, and the sales
+- a card per game: prizes, value per $1 with its range and parts, odds for one play and for a
+  max $30 ticket (5 Lotto Max or 10 6/49 plays), and the sales
   forecast
 - whether a winner is guaranteed: every 6/49 draw pays one ticket $1M or the Gold Ball jackpot,
   and the jackpot must be won by the draw where the gold ball is the last one left (worked out
