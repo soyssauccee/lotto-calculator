@@ -16,8 +16,7 @@ const PARTS = {
   lower_tiers: "Smaller prizes",
 };
 const STALE_HOURS = 30; // runs happen after every draw and each morning
-const CHART_WEEKS = 26;
-const CHART_FROM = "2026-04-14"; // Lotto Max's current format started then
+const CHART_MONTHS = 12;
 const REFRESH_AFTER_MS = 5 * 60 * 1000; // when the page comes back into view
 const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
 const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
@@ -327,9 +326,9 @@ const CHARTS = [
 
 function chartSeries(draws, next, chart) {
   const dates = draws.map((d) => d.draw_date).sort();
-  const latest = dates[dates.length - 1];
-  const cutoff = new Date(Date.parse(latest) - CHART_WEEKS * 7 * 864e5).toISOString().slice(0, 10);
-  const from = cutoff > CHART_FROM ? cutoff : CHART_FROM;
+  const start = new Date(dates[dates.length - 1] + "T00:00:00Z"); // the newest draw...
+  start.setUTCMonth(start.getUTCMonth() - CHART_MONTHS); // ...and the same day a year earlier
+  const from = start.toISOString().slice(0, 10);
   return Object.keys(GAMES).map((game) => ({
     game,
     points: draws
@@ -375,11 +374,16 @@ function renderChart(chart, draws, next) {
   const start = new Date(t0);
   const monthCount = Math.max(1, Math.round((t1 - t0) / (30.4 * 864e5)));
   const everyOther = (W - L - R) / monthCount < 30; // too narrow for every month's name
-  let index = 0;
   for (let d = new Date(start.getFullYear(), start.getMonth() + 1, 1); d.getTime() <= t1; d.setMonth(d.getMonth() + 1)) {
-    if (everyOther && index++ % 2) continue;
-    months.push(`<text class="axis" x="${x(d.getTime())}" y="${H - 6}" text-anchor="middle">${d.toLocaleDateString("en-CA", { month: "short" })}</text>`);
+    if (everyOther && d.getMonth() % 2) continue; // keep January, March, May...
+    // January shows the year instead, since the chart spans two
+    const label = d.getMonth() ? d.toLocaleDateString("en-CA", { month: "short" }) : String(d.getFullYear());
+    months.push(`<text class="axis" x="${x(d.getTime())}" y="${H - 6}" text-anchor="middle">${label}</text>`);
   }
+  // Each game draws twice a week. Where a year of draws packs them close, the dots shrink, and
+  // where they'd run together they're left out: the line still bends at every draw.
+  const drawGap = ((W - L - R) / Math.max(1, (t1 - t0) / 864e5)) * 3.5;
+  const dotRadius = drawGap >= 6 ? 2 : drawGap >= 3.5 ? 1.3 : 0;
 
   // Each game's line is drawn twice, clipped at the minimum: its bright shade above the line,
   // its faded shade below, so the colour changes exactly where the line crosses. Dots take
@@ -394,7 +398,9 @@ function renderChart(chart, draws, next) {
     .map((s) => {
       const css = GAMES[s.game].css;
       const line = s.points.map((p) => `${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
-      const dots = s.points.map((p) => `<circle class="${css} ${side(p.v)}" cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="2"/>`).join("");
+      const dots = dotRadius
+        ? s.points.map((p) => `<circle class="${css} ${side(p.v)}" cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${dotRadius}"/>`).join("")
+        : "";
       let upcoming = "";
       if (s.next) {
         const last = s.points[s.points.length - 1];
@@ -413,6 +419,12 @@ function renderChart(chart, draws, next) {
   const minimumLine = `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
   const minimumKey = `<span class="key-min">${perDollar(minimum)} minimum</span>`;
   const described = chart.allPrizes ? "with all prizes" : "in big prizes";
+  // Lotto Max's stored draws begin with its current game; until that's a year ago, its line
+  // starts partway along, so say why.
+  const maxFirst = series.find((s) => s.game === "lottomax")?.points[0];
+  const maxStart = maxFirst && maxFirst.t - t0 > 14 * 864e5
+    ? ` Lotto Max starts ${new Date(maxFirst.draw.draw_date + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}, when its current $6 game began.`
+    : "";
 
   el.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Value per dollar ${described} of each game's recent draws">
@@ -420,7 +432,7 @@ function renderChart(chart, draws, next) {
       <circle class="focus" r="6" cx="-20" cy="-20"/>
     </svg>
     <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="key-${GAMES[g].css}"><i class="hi"></i><i class="lo"></i>${GAMES[g].name}</span>`).join("")}${minimumKey}</div>
-    <p class="chart-key-note">Brighter above the minimum, softer below it.</p>`;
+    <p class="chart-key-note">Brighter above the minimum, softer below it.${maxStart}</p>`;
 
   const svg = el.querySelector("svg");
   const focus = el.querySelector(".focus");
@@ -451,7 +463,15 @@ function renderChart(chart, draws, next) {
 
 function worthText(chart, big, all) {
   if (!chart.allPrizes) return `${perDollar(big)} per $1`;
-  return `${perDollar(all)} per $1 with all prizes (${perDollar(big)} big + ${perDollar(all - big)} smaller)`;
+  const cents = (v) => Math.round(v * 100);
+  const smaller = (cents(all) - cents(big)) / 100; // so the shown parts add up to the shown total
+  return `${perDollar(all)} per $1 with all prizes (${perDollar(big)} big + ${perDollar(smaller)} smaller)`;
+}
+
+// A past draw's day: the charts reach back a year, so draws from an earlier year say which.
+function pastDayText(isoDate) {
+  const year = isoDate.slice(0, 4);
+  return year === todayInToronto().slice(0, 4) ? dayText(isoDate) : `${dayText(isoDate)}, ${year}`;
 }
 
 function readoutText(p, chart) {
@@ -465,11 +485,11 @@ function readoutText(p, chart) {
   const worth = worthText(chart, d.value_per_dollar, d.value_per_dollar_all_prizes);
   if (p.game === "lottomax") {
     const won = d.tier_winners["7/7"] ? ", jackpot won" : "";
-    return `${name}, ${dayText(d.draw_date)}: ${money(d.jackpot)} jackpot${won}, ${plays}. Worth ${worth}.`;
+    return `${name}, ${pastDayText(d.draw_date)}: ${money(d.jackpot)} jackpot${won}, ${plays}. Worth ${worth}.`;
   }
   const ball = d.gold_ball_drawn === "gold" ? ", gold ball drawn" : "";
   const extra = d.super_draw ? ", Super Draw" : "";
-  return `${name}, ${dayText(d.draw_date)}: ${money(d.gold_ball_amount)} Gold Ball with ${d.balls_remaining} balls${ball}${extra}, ${plays}. Worth ${worth}.`;
+  return `${name}, ${pastDayText(d.draw_date)}: ${money(d.gold_ball_amount)} Gold Ball with ${d.balls_remaining} balls${ball}${extra}, ${plays}. Worth ${worth}.`;
 }
 
 // ---------- loading and events ----------

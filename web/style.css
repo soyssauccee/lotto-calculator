@@ -138,7 +138,7 @@ button { -webkit-tap-highlight-color: transparent; }
   vertical-align: 1px;
 }
 
-/* The game cards side by side, and the charts side by side under them */
+/* The game cards side by side (the charts, a year wide, each get the full width) */
 .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
 .pair > .card { margin-bottom: 0; }
 .verdict, .segmented { max-width: 640px; }
@@ -293,11 +293,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .facts b { font-size: 15px; margin-top: 1px; }
   .facts small { font-size: 11px; }
   .note { font-size: 11px; }
-  .chart-card h2 { font-size: 14px; }
-  .chart-card .caption { font-size: 11px; }
-  .chart { margin: 12px -2px 0; }
-  .chart-legend { gap: 4px 10px; font-size: 11px; margin: 8px 2px 0; }
-  .chart-key-note, .readout { font-size: 11px; }
+  .chart-card { padding-left: 14px; padding-right: 14px; } /* a little more room for the year */
 }
 
 /* Footer */
