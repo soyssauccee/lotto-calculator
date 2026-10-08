@@ -379,7 +379,7 @@ function renderChart(chart, draws, next) {
   const everyOther = (W - L - R) / monthCount < 30; // too narrow for every month's name
   for (let d = new Date(start.getFullYear(), start.getMonth() + 1, 1); d.getTime() <= t1; d.setMonth(d.getMonth() + 1)) {
     if (everyOther && d.getMonth() % 2) continue; // keep January, March, May...
-    // January shows the year instead, since the chart spans two
+    // January shows the year instead, for a chart that spans two
     const label = d.getMonth() ? d.toLocaleDateString("en-CA", { month: "short" }) : String(d.getFullYear());
     months.push(`<text class="axis" x="${x(d.getTime())}" y="${H - 6}" text-anchor="middle">${label}</text>`);
   }
@@ -465,7 +465,7 @@ function worthText(chart, big, all) {
   return `${perDollar(all)} per $1 with all prizes (${perDollar(big)} big + ${perDollar(smaller)} smaller)`;
 }
 
-// A past draw's day: the charts reach back a year, so draws from an earlier year say which.
+// A past draw's day: the charts reach back up to a year, so draws from an earlier year say which.
 function pastDayText(isoDate) {
   const year = isoDate.slice(0, 4);
   return year === todayInToronto().slice(0, 4) ? dayText(isoDate) : `${dayText(isoDate)}, ${year}`;

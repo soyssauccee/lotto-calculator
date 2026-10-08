@@ -138,7 +138,7 @@ button { -webkit-tap-highlight-color: transparent; }
   vertical-align: 1px;
 }
 
-/* The game cards side by side (the charts, a year wide, each get the full width) */
+/* The game cards side by side (the charts, up to a year of draws, each get the full width) */
 .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
 .pair > .card { margin-bottom: 0; }
 .verdict, .segmented { max-width: 640px; }
