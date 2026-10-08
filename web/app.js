@@ -328,7 +328,10 @@ function chartSeries(draws, next, chart) {
   const dates = draws.map((d) => d.draw_date).sort();
   const start = new Date(dates[dates.length - 1] + "T00:00:00Z"); // the newest draw...
   start.setUTCMonth(start.getUTCMonth() - CHART_MONTHS); // ...and the same day a year earlier
-  const from = start.toISOString().slice(0, 10);
+  // ...but not before both games have draws (Lotto Max's are stored from its current game's
+  // start), so neither line starts partway along
+  const firsts = Object.keys(GAMES).map((game) => draws.filter((d) => d.game === game).map((d) => d.draw_date).sort()[0] ?? "");
+  const from = [start.toISOString().slice(0, 10), ...firsts].sort().pop();
   return Object.keys(GAMES).map((game) => ({
     game,
     points: draws
@@ -419,12 +422,6 @@ function renderChart(chart, draws, next) {
   const minimumLine = `<line class="minline" x1="${L}" x2="${W - R}" y1="${y(minimum)}" y2="${y(minimum)}"/>`;
   const minimumKey = `<span class="key-min">${perDollar(minimum)} minimum</span>`;
   const described = chart.allPrizes ? "with all prizes" : "in big prizes";
-  // Lotto Max's stored draws begin with its current game; until that's a year ago, its line
-  // starts partway along, so say why.
-  const maxFirst = series.find((s) => s.game === "lottomax")?.points[0];
-  const maxStart = maxFirst && maxFirst.t - t0 > 14 * 864e5
-    ? ` Lotto Max starts ${new Date(maxFirst.draw.draw_date + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}, when its current $6 game began.`
-    : "";
 
   el.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Value per dollar ${described} of each game's recent draws">
@@ -432,7 +429,7 @@ function renderChart(chart, draws, next) {
       <circle class="focus" r="6" cx="-20" cy="-20"/>
     </svg>
     <div class="chart-legend">${Object.keys(GAMES).map((g) => `<span class="key-${GAMES[g].css}"><i class="hi"></i><i class="lo"></i>${GAMES[g].name}</span>`).join("")}${minimumKey}</div>
-    <p class="chart-key-note">Brighter above the minimum, softer below it.${maxStart}</p>`;
+    <p class="chart-key-note">Brighter above the minimum, softer below it.</p>`;
 
   const svg = el.querySelector("svg");
   const focus = el.querySelector(".focus");
