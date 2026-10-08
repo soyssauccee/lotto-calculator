@@ -161,7 +161,7 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
 - whether a winner is guaranteed: every 6/49 draw pays one ticket $1M or the Gold Ball jackpot,
   and the jackpot must be won by the draw where the gold ball is the last one left (worked out
   from the balls remaining, at $2M per white ball); Lotto Max has no must-win draw
-- two full-width charts of value per $1 since Lotto Max's current game began (Apr 14, 2026),
+- two charts side by side of value per $1 since Lotto Max's current game began (Apr 14, 2026),
   so both lines span the chart, up to the last 12 months; one for big prizes (with the $0.35 minimum)
   and one for the whole ticket with every prize (with a $0.50 guide line); each game's line is
   brighter above the minimum and softer below it (tap a point for details). The Big prizes /

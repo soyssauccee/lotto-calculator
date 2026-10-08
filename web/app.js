@@ -383,10 +383,11 @@ function renderChart(chart, draws, next) {
     const label = d.getMonth() ? d.toLocaleDateString("en-CA", { month: "short" }) : String(d.getFullYear());
     months.push(`<text class="axis" x="${x(d.getTime())}" y="${H - 6}" text-anchor="middle">${label}</text>`);
   }
-  // Each game draws twice a week. Where a year of draws packs them close, the dots shrink, and
-  // where they'd run together they're left out: the line still bends at every draw.
+  // Each game draws twice a week. As the charts reach back toward a year, a phone's narrow
+  // columns pack the draws closer: the dots shrink, then are left out once they'd merge into
+  // a blob (the line still bends at every draw).
   const drawGap = ((W - L - R) / Math.max(1, (t1 - t0) / 864e5)) * 3.5;
-  const dotRadius = drawGap >= 6 ? 2 : drawGap >= 3.5 ? 1.3 : 0;
+  const dotRadius = drawGap >= 2 ? 2 : drawGap >= 1.3 ? 1.3 : 0;
 
   // Each game's line is drawn twice, clipped at the minimum: its bright shade above the line,
   // its faded shade below, so the colour changes exactly where the line crosses. Dots take
