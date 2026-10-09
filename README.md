@@ -101,19 +101,19 @@ The fit is then nudged by 0.7 × the average miss on the last 4 draws, because s
 in runs.
 
 Walk-forward backtest, where each draw is predicted only from the draws before it (as of
-October 3, 2026):
+October 9, 2026):
 
 | | Draws | Avg error | Median | Within ±15% | 80% range held |
 |---|---|---|---|---|---|
-| Lotto 6/49 | 323 | 2.8% | 2.1% | 98.8% | 82% |
-| Lotto Max | 34 | 2.5% | 2.4% | 100% | 71% |
+| Lotto 6/49 | 325 | 2.8% | 2.1% | 98.8% | 81% |
+| Lotto Max | 35 | 2.6% | 2.6% | 100% | 67% |
 
 6/49 errors are larger on special draws (5.0% with ≤5 balls, a Super Draw or the holidays,
 vs 2.3% otherwise), so those draws get their own, wider range. Upcoming Super Draws are not
 announced anywhere this project can read, so forecasts assume a normal draw. Lotto Max's
-$60M–$70M draws in late September sold 4.6–6% more than forecast, above any jackpot its
-current format had seen; that barely matters for its value, which a 6% sales miss moves by
-under 1%.
+$60M–$75M draws from late September on sold 4.6–6.7% more than forecast, above any jackpot
+its current format had seen, so its ranges have held less often than they should; that
+barely matters for its value, which a 6% sales miss moves by under 1%.
 
 ## Value
 
@@ -136,8 +136,12 @@ times the share you keep if others win it too.
 (`MIN_WORTH_PLAYING` in `lottocalc/value.py`), neither is recommended and the page says "Skip
 for now". The minimum is judged on big prizes, because all-prize values run about $0.20 higher.
 
-Checked against history: the model expects 27.1 Gold Ball jackpots, 124 Classic wins and 151
-MAXPLUS wins, and history shows 24, 126 and 165. All three are within 1.2 standard deviations.
+Checked against history (as of October 9, 2026): the model expects 27.2 Gold Ball jackpots,
+125.2 draws with a Classic winner, 198 MAXPLUS, 12.5 MAXMILLIONS and 5.7 Lotto Max jackpot
+wins, and history shows 24, 126, 210, 14 and 10. The last is a 1-in-19 result, unremarkable
+among five checks, and MAXPLUS series have the same odds per line and agree. The smaller
+prizes the model expects ($0.195 per $1 for Lotto Max, $0.181 for 6/49) match what the
+stored draws actually paid ($0.195, $0.181).
 
 Rule of thumb from the stored draws (median value per $1 in big prizes):
 
@@ -145,9 +149,9 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
 |---|---|---|---|---|---|---|---|
 | 6/49 | $0.22 | $0.25 | $0.30 | $0.36 | $0.51 | $0.79 | $1.62 |
 
-| Lotto Max jackpot | $10M | $20M | $30M | $40M | $50M | $55M | $60M | $65M | $70M |
-|---|---|---|---|---|---|---|---|---|---|
-| Lotto Max | $0.05 | $0.10 | $0.16 | $0.21 | $0.27 | $0.30 | $0.33 | $0.37 | $0.39 |
+| Lotto Max jackpot | $10M | $20M | $30M | $40M | $50M | $55M | $60M | $65M | $70M | $75M |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Lotto Max | $0.05 | $0.10 | $0.16 | $0.21 | $0.27 | $0.30 | $0.33 | $0.37 | $0.39 | $0.42 |
 
 ## Web page
 

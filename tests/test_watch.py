@@ -64,14 +64,40 @@ def test_only_real_changes_count_as_news():
 
 # ---------- whole runs, on a simulated clock ----------
 
-class World:
-    """The repo and the lottery sites: Saturday's 6/49 result appears at `posted_at`,
-    and a Scrape run stores it along with the next jackpot."""
+def night(stored, result, waiting, settled):
+    """A draw night: the draws stored beforehand, the night's result, and next.json before
+    and after the result and the next jackpot are in."""
+    return {"stored": stored, "result": result, "waiting": waiting, "settled": settled}
 
-    def __init__(self, clock, posted_at, other_watcher=None):
+
+SEPTEMBER_26 = night([FRIDAY_MAX, WEDNESDAY_649], SATURDAY_649, next_doc(), next_doc(g649=(4455, "2026-09-30")))
+# The clocks go back at 2 AM on Sunday Nov 1, in the night after Saturday's draw...
+OCTOBER_31 = night(
+    [{"game": "lottomax", "draw_date": "2026-10-30", "draw_number": 1283},
+     {"game": "lotto649", "draw_date": "2026-10-28", "draw_number": 4463}],
+    {"game": "lotto649", "draw_date": "2026-10-31", "draw_number": 4464},
+    next_doc(g649=(4464, "2026-10-31"), lottomax=(1284, "2026-11-03")),
+    next_doc(g649=(4465, "2026-11-04"), lottomax=(1284, "2026-11-03")),
+)
+# ...so the next Saturday's draw is at 10:30 PM EST, 03:30 UTC
+NOVEMBER_7 = night(
+    [{"game": "lottomax", "draw_date": "2026-11-06", "draw_number": 1285},
+     {"game": "lotto649", "draw_date": "2026-11-04", "draw_number": 4465}],
+    {"game": "lotto649", "draw_date": "2026-11-07", "draw_number": 4466},
+    next_doc(g649=(4466, "2026-11-07"), lottomax=(1286, "2026-11-10")),
+    next_doc(g649=(4467, "2026-11-11"), lottomax=(1286, "2026-11-10")),
+)
+
+
+class World:
+    """The repo and the lottery sites: the night's result appears at `posted_at`, and a
+    Scrape run stores it along with the next jackpot."""
+
+    def __init__(self, clock, posted_at, other_watcher=None, night=SEPTEMBER_26):
         self.clock, self.posted_at = clock, posted_at
-        self.draws = [FRIDAY_MAX, WEDNESDAY_649]
-        self.next_doc = next_doc()
+        self.draws = list(night["stored"])
+        self.next_doc = night["waiting"]
+        self.result, self.settled = night["result"], night["settled"]
         self.version = 1
         self.scrapes = self.handovers = self.checks = 0
         self.other_watcher = other_watcher
@@ -82,7 +108,7 @@ class World:
 
     def found_news(self):
         self.checks += 1
-        return self.clock.now >= self.posted_at and SATURDAY_649 not in self.draws
+        return self.clock.now >= self.posted_at and self.result not in self.draws
 
     def git(self, *args):
         return str(self.version)
@@ -94,8 +120,8 @@ class World:
     def run_scrape(self):
         self.scrapes += 1
         if self.clock.now >= self.posted_at:
-            self.draws = self.draws + [SATURDAY_649]
-            self.next_doc = next_doc(g649=(4455, "2026-09-30"))
+            self.draws = self.draws + [self.result]
+            self.next_doc = self.settled
             self.version += 1
         return True
 
@@ -115,9 +141,9 @@ class Clock:
 @pytest.fixture
 def run(monkeypatch):
     """run(start, posted_at, *args) -> (exit status, world, clock) for one Draw watch run."""
-    def go(start, posted_at, *args, other_watcher=None):
+    def go(start, posted_at, *args, other_watcher=None, night=SEPTEMBER_26):
         clock = Clock(start)
-        world = World(clock, posted_at, other_watcher)
+        world = World(clock, posted_at, other_watcher, night)
         monkeypatch.setenv("GITHUB_TOKEN", "t")
         monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
         monkeypatch.setattr(watch, "utcnow", lambda: clock.now)
@@ -171,3 +197,29 @@ def test_a_run_far_ahead_of_the_draw_leaves_it_to_a_later_one(run):
 def test_a_run_started_by_hand_checks_once_even_far_ahead(run):
     status, world, clock = run(utc(26, 11, 0), utc(27, 2, 55), "--now")  # Saturday 7 AM EDT
     assert (status, world.checks, world.handovers, world.scrapes) == (0, 1, 0, 0)
+
+
+# ---------- when the clocks go back ----------
+
+def test_the_night_the_clocks_go_back_gives_up_at_noon_standard_time(run):
+    # Saturday Oct 31's result never arrives. By Sunday noon the clocks have gone back, so noon
+    # is 17:00 UTC, not 16:00 as it would have been the day before.
+    never = datetime(2026, 11, 3, tzinfo=timezone.utc)
+    start = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)  # 7 AM EST
+    status, world, clock = run(start, never, "--handed-over-by", "7", night=OCTOBER_31)
+    assert (status, world.handovers, world.scrapes) == (0, 0, 0)
+    assert clock.now == datetime(2026, 11, 1, 17, 0, tzinfo=timezone.utc)
+
+
+def test_on_standard_time_the_watch_starts_at_1045_pm_eastern(run):
+    # Saturday Nov 7: a run handed over at 4:37 PM EST is still 6 hours from the draw, so it
+    # hands over again...
+    start = datetime(2026, 11, 7, 21, 37, tzinfo=timezone.utc)
+    status, world, clock = run(start, start + timedelta(days=2), "--handed-over-by", "7", night=NOVEMBER_7)
+    assert (status, world.checks, world.handovers) == (0, 0, 1)
+    # ...and the next run first looks at 10:45 PM EST (03:45 UTC), then catches a result
+    # posted at 10:50 PM on its next look
+    posted = datetime(2026, 11, 8, 3, 50, tzinfo=timezone.utc)
+    status, world, clock = run(start + watch.RUN_BUDGET, posted, "--handed-over-by", "8", night=NOVEMBER_7)
+    assert (status, world.checks, world.scrapes, world.handovers) == (0, 2, 1, 0)
+    assert clock.now == datetime(2026, 11, 8, 3, 55, tzinfo=timezone.utc)
