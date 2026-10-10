@@ -100,11 +100,31 @@ def test_threshold_alert_fires_once_per_draw():
 
 
 def test_threshold_is_on_the_whole_ticket_not_big_prizes():
-    # $0.38 in big prizes is under the $0.55 alert, but $0.58 for the whole ticket, which is what counts
+    # $0.38 in big prizes is under the $0.55 alert, but $0.58 for the whole ticket, which is what counts.
+    # Big prizes are also under the $0.40 minimum, so the alert says the pick is still a skip.
     before = doc("2026-09-24T11:17:00Z", max_value=0.35, max_all=0.54, max_draw=1273)
     after = doc("2026-09-24T21:17:00Z", max_value=0.38, max_all=0.58, max_draw=1273)
-    messages = alerts.value_alerts(before, after)
-    assert any("whole ticket is worth $0.58" in m for m in messages)
+    assert alerts.value_alerts(before, after) == [
+        "Lotto Max's whole ticket is worth $0.58 back per $1 for the 2026-09-25 draw ($60M jackpot + 6 x $1M), "
+        "above your $0.55 alert. Still a skip: big prizes are $0.38, under your $0.40 minimum."
+    ]
+
+
+def test_a_value_that_rounds_to_its_minimum_is_worded_to_match():
+    # $0.3999 shows as $0.40, so it's "just under" the $0.40 minimum, not "$0.40, under your $0.40 minimum"
+    just_short = doc("2026-09-26T11:17:00Z", max_value=0.3999, max_draw=1274)
+    assert alerts.value_alerts(CLEAN_NOW, just_short) == [
+        "Neither game is worth playing now: the better one, Lotto Max, is at $0.40 back per $1, just under your $0.40 minimum."
+    ]
+    after_draw = doc("2026-09-27T05:40:00Z", max_value=0.3999, max_draw=1274, g649_draw=4455)
+    assert alerts.value_alerts(just_short, after_draw) == [
+        "After Saturday's Lotto 6/49 draw: still nothing worth playing. The better one, Lotto Max, is at "
+        "$0.40 back per $1, just under your $0.40 minimum."
+    ]
+    # and a whole ticket worth exactly the alert level is "at" it
+    assert threshold_alerts(CLEAN_BEFORE, doc("2026-09-24T21:17:00Z", max_all=0.55)) == [
+        "Lotto Max's whole ticket is worth $0.55 back per $1 for the 2026-09-25 draw ($60M jackpot + 6 x $1M), at your $0.55 alert."
+    ]
 
 
 def test_threshold_can_be_changed():

@@ -450,7 +450,9 @@ function renderChart(chart, draws, next) {
     if (!best) return;
     focus.setAttribute("cx", x(best.t));
     focus.setAttribute("cy", y(best.v));
-    const where = best.v >= minimum ? "above" : "below";
+    // in words that agree with both figures as shown: $0.3996 is "just below" a $0.40 minimum
+    const sameCents = perDollar(best.v) === perDollar(minimum);
+    const where = best.v >= minimum ? (sameCents ? "at" : "above") : sameCents ? "just below" : "below";
     readout.textContent = `${readoutText(best, chart)} That's ${where} the ${perDollar(minimum)} minimum.`;
   };
   svg.addEventListener("pointerdown", pick);

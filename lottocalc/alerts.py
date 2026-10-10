@@ -79,7 +79,7 @@ def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
         if now == "skip":
             alerts.append(
                 f"Neither game is worth playing now: the better one, {model.GAME_NAMES[best]}, is at "
-                f"${top['per_dollar']:.2f} back per $1, under your ${recommendation['min_per_dollar']:.2f} minimum."
+                f"${top['per_dollar']:.2f} back per $1, {_short_of(recommendation, top['per_dollar'])}."
             )
         elif before == "skip":
             alerts.append(
@@ -94,17 +94,22 @@ def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
             )
     for game in model.GAMES:
         info = current.get(game) or {}
-        worth = (info.get("value") or {}).get("per_dollar_all_prizes")
+        values = info.get("value") or {}
+        worth = values.get("per_dollar_all_prizes")
         if worth is None or worth < threshold:
             continue
         earlier = previous.get(game) or {}
         earlier_worth = (earlier.get("value") or {}).get("per_dollar_all_prizes")
         if earlier.get("draw_number") == info.get("draw_number") and earlier_worth is not None and earlier_worth >= threshold:
             continue  # already alerted for this draw
-        alerts.append(
+        message = (
             f"{model.GAME_NAMES[game]}'s whole ticket is worth ${worth:.2f} back per $1 for the {info['draw_date']} "
-            f"draw ({_prizes(game, info)}), above your ${threshold:.2f} alert."
+            f"draw ({_prizes(game, info)}), {_against(worth, threshold)} your ${threshold:.2f} alert."
         )
+        if now == "skip":  # the play/skip verdict goes by big prizes, so say this doesn't change it
+            big = values["per_dollar"]
+            message += f" Still a skip: big prizes are ${big:.2f}, {_short_of(current['recommendation'], big)}."
+        alerts.append(message)
     return alerts
 
 
@@ -120,11 +125,25 @@ def _after_draw(previous, current, finished, now):
     best, other = top["game"], model.LOTTO_649 if top["game"] == model.LOTTO_MAX else model.LOTTO_MAX
     if now == "skip":
         return (f"After {held}: still nothing worth playing. The better one, {model.GAME_NAMES[best]}, is at "
-                f"${top['per_dollar']:.2f} back per $1, under your ${recommendation['min_per_dollar']:.2f} minimum.")
+                f"${top['per_dollar']:.2f} back per $1, {_short_of(recommendation, top['per_dollar'])}.")
     info = current[best]
     return (f"After {held}: keep playing {model.GAME_NAMES[best]}: ${top['per_dollar']:.2f} back per $1 for "
             f"{date.fromisoformat(info['draw_date']):%a %b %d} ({_prizes(best, info)}). "
             f"{model.GAME_NAMES[other]} is at ${top['runner_up_per_dollar']:.2f}.")
+
+
+def _against(amount, line):
+    """How `amount` stands against `line`, in words that agree with both shown to the cent:
+    $0.3996 is "just under" a $0.40 minimum, not "$0.40 back per $1, under your $0.40 minimum"."""
+    if f"{amount:.2f}" == f"{line:.2f}":
+        return "at" if amount >= line else "just under"
+    return "above" if amount >= line else "under"
+
+
+def _short_of(recommendation, amount):
+    """'under your $0.40 minimum' for a big-prize value that is under it."""
+    minimum = recommendation.get("min_per_dollar", value.MIN_WORTH_PLAYING)  # files from before the minimum lack it
+    return f"{_against(amount, minimum)} your ${minimum:.2f} minimum"
 
 
 def _prizes(game, info):

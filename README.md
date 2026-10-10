@@ -210,7 +210,8 @@ After each Scrape run, `alert.py` sends these alerts:
   games, or both fall under the $0.40 minimum), and when a draw is worth at least $0.55 per $1
   for the whole ticket, every prize counted (`DEFAULT_VALUE_THRESHOLD` in `lottocalc/alerts.py`,
   matching the whole-ticket chart's line). Each draw alerts at
-  most once for the threshold. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
+  most once for the threshold, and while both games are under the big-prize minimum that alert
+  adds that the pick is still a skip. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
   they are posted as comments on a `value-alert` issue. With ntfy set up, opening and closing a
   `data-problem` issue is pushed to the phone too.
 
