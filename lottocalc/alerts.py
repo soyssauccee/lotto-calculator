@@ -9,7 +9,7 @@ from . import model, value
 # Warnings that mean a source is degrading even though the data is still current.
 DEGRADED_MARKERS = ("backup source", "unreadable")
 CRASHED = "The scraper stopped before writing new data. The run log has the details."
-DEFAULT_VALUE_THRESHOLD = 0.50
+DEFAULT_VALUE_THRESHOLD = 0.55
 
 
 def problems(doc):

@@ -117,12 +117,12 @@ def test_recommendation_picks_the_better_value_with_its_margin():
 
 @pytest.mark.parametrize(
     "max_value, value_649, play",
-    [(0.372, 0.218, True), (0.35, 0.22, True), (0.332, 0.20, False), (0.12, 0.3499, False)],
+    [(0.422, 0.218, True), (0.40, 0.22, True), (0.382, 0.20, False), (0.12, 0.3999, False)],
 )
 def test_recommending_play_needs_the_minimum_in_big_prizes(max_value, value_649, play):
     result = value.recommend(values(max_value, [max_value, max_value], value_649, [value_649, value_649]))
     assert result["play"] is play
-    assert result["min_per_dollar"] == value.MIN_WORTH_PLAYING == 0.35
+    assert result["min_per_dollar"] == value.MIN_WORTH_PLAYING == 0.40
     # the better game is still named, so the page can say which one came closest
     assert result["top_prizes"]["game"] == (model.LOTTO_MAX if max_value > value_649 else model.LOTTO_649)
 

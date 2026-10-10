@@ -27,7 +27,7 @@ import math
 from . import model, sales
 
 PRICE = sales.PRICE
-MIN_WORTH_PLAYING = 0.35  # big-prize value per $1 below which neither game is recommended
+MIN_WORTH_PLAYING = 0.40  # big-prize value per $1 below which neither game is recommended
 LOTTO_MAX_SERIES_ODDS = sales.LINES_PER_PLAY[model.LOTTO_MAX] / math.comb(52, 7)  # per play
 CLASSIC_ODDS = sales.tier_probability(model.LOTTO_649, "6/6")
 MAXMILLIONS_PRIZE = 1_000_000

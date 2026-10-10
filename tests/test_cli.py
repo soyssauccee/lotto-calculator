@@ -40,7 +40,7 @@ def test_recommend_says_skip_below_the_minimum(tmp_path, capsys):
     next_doc["recommendation"]["play"] = False
     (tmp_path / "next.json").write_text(json.dumps(next_doc), encoding="utf-8")
     assert recommend.main(["--data-dir", str(tmp_path)]) == 0
-    assert "Skip for now: neither game reaches $0.35" in capsys.readouterr().out
+    assert "Skip for now: neither game reaches $0.40" in capsys.readouterr().out
 
 
 def test_forecast_report(tmp_path, capsys):

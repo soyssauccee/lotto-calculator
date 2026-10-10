@@ -6,7 +6,7 @@ import alert
 from lottocalc import alerts, model
 
 
-def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.37, g649_value=0.22,
+def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.42, g649_value=0.22,
         max_draw=1273, g649_draw=4454, balls=29, legacy=False, max_all=None, g649_all=None):
     """A next.json; whole-ticket values default to $0.10 over the big-prize ones."""
     max_all = round(max_value + 0.10, 4) if max_all is None else max_all
@@ -14,7 +14,7 @@ def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.37, g64
     runner_up = g649_value if best == model.LOTTO_MAX else max_value
     recommendation = {"top_prizes": {"game": best, "per_dollar": max(max_value, g649_value), "runner_up_per_dollar": runner_up}}
     if not legacy:  # next.json files from before the minimum lack these
-        recommendation.update(play=max(max_value, g649_value) >= 0.35, min_per_dollar=0.35)
+        recommendation.update(play=max(max_value, g649_value) >= 0.40, min_per_dollar=0.40)
     return {
         "scraped_at": stamp,
         model.LOTTO_MAX: {"draw_number": max_draw, "draw_date": "2026-09-25", "jackpot": 60_000_000,
@@ -56,24 +56,24 @@ def test_falling_back_to_the_backup_source_counts_as_a_problem():
 
 
 def test_switch_between_games_worth_playing_is_announced():
-    switched = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.36, g649_value=0.39, max_draw=1274)
+    switched = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.41, g649_value=0.44, max_draw=1274)
     messages = alerts.value_alerts(CLEAN_NOW, switched)
     assert len(messages) == 1
-    assert messages[0].startswith("Lotto 6/49 is now the better buy: $0.39 vs $0.36")
+    assert messages[0].startswith("Lotto 6/49 is now the better buy: $0.44 vs $0.41")
 
 
 def test_dropping_below_the_minimum_is_announced():
     both_low = doc("2026-09-26T11:17:00Z", best=model.LOTTO_649, max_value=0.05, g649_value=0.24, max_draw=1274)
     assert alerts.verdict(both_low) == "skip"
     assert alerts.value_alerts(CLEAN_NOW, both_low) == [
-        "Neither game is worth playing now: the better one, Lotto 6/49, is at $0.24 back per $1, under your $0.35 minimum."
+        "Neither game is worth playing now: the better one, Lotto 6/49, is at $0.24 back per $1, under your $0.40 minimum."
     ]
 
 
 def test_becoming_worth_playing_is_announced():
     both_low = doc("2026-09-24T11:17:00Z", max_value=0.25, max_draw=1272)
     assert alerts.value_alerts(both_low, CLEAN_NOW) == [
-        "Lotto Max is worth playing: $0.37 back per $1 for the 2026-09-25 draw ($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
+        "Lotto Max is worth playing: $0.42 back per $1 for the 2026-09-25 draw ($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
     ]
 
 
@@ -84,33 +84,33 @@ def test_no_alert_while_nothing_is_worth_playing():
 
 
 def test_next_json_from_before_the_minimum_still_compares():
-    legacy = doc("2026-09-24T11:17:00Z", legacy=True)  # Lotto Max at $0.37, no "play" field
+    legacy = doc("2026-09-24T11:17:00Z", legacy=True)  # Lotto Max at $0.42, no "play" field
     assert alerts.verdict(legacy) == model.LOTTO_MAX
     assert alerts.value_alerts(legacy, CLEAN_NOW) == []
 
 
 def test_threshold_alert_fires_once_per_draw():
-    rich = doc("2026-09-24T21:17:00Z", best=model.LOTTO_649, g649_value=0.32, g649_all=0.52, balls=9)
-    first = alerts.value_alerts(doc("2026-09-24T11:17:00Z", best=model.LOTTO_649, g649_value=0.26, g649_all=0.45, balls=9), rich)
-    assert first == ["Lotto 6/49's whole ticket is worth $0.52 back per $1 for the 2026-09-26 draw "
-                     "($12M Gold Ball, 9 balls left), above your $0.50 alert."]
-    assert alerts.value_alerts(rich, doc("2026-09-25T04:17:00Z", best=model.LOTTO_649, g649_value=0.33, g649_all=0.53, balls=9)) == []
-    next_draw = doc("2026-09-27T11:17:00Z", best=model.LOTTO_649, g649_value=0.38, g649_all=0.58, g649_draw=4455, balls=8)
+    rich = doc("2026-09-24T21:17:00Z", best=model.LOTTO_649, g649_value=0.37, g649_all=0.57, balls=9)
+    first = alerts.value_alerts(doc("2026-09-24T11:17:00Z", best=model.LOTTO_649, g649_value=0.31, g649_all=0.50, balls=9), rich)
+    assert first == ["Lotto 6/49's whole ticket is worth $0.57 back per $1 for the 2026-09-26 draw "
+                     "($12M Gold Ball, 9 balls left), above your $0.55 alert."]
+    assert alerts.value_alerts(rich, doc("2026-09-25T04:17:00Z", best=model.LOTTO_649, g649_value=0.38, g649_all=0.58, balls=9)) == []
+    next_draw = doc("2026-09-27T11:17:00Z", best=model.LOTTO_649, g649_value=0.43, g649_all=0.63, g649_draw=4455, balls=8)
     assert len(threshold_alerts(rich, next_draw)) == 1
 
 
 def test_threshold_is_on_the_whole_ticket_not_big_prizes():
-    # $0.33 in big prizes is under the $0.50 alert, but $0.53 for the whole ticket, which is what counts
-    before = doc("2026-09-24T11:17:00Z", max_value=0.30, max_all=0.49, max_draw=1273)
-    after = doc("2026-09-24T21:17:00Z", max_value=0.33, max_all=0.53, max_draw=1273)
+    # $0.38 in big prizes is under the $0.55 alert, but $0.58 for the whole ticket, which is what counts
+    before = doc("2026-09-24T11:17:00Z", max_value=0.35, max_all=0.54, max_draw=1273)
+    after = doc("2026-09-24T21:17:00Z", max_value=0.38, max_all=0.58, max_draw=1273)
     messages = alerts.value_alerts(before, after)
-    assert any("whole ticket is worth $0.53" in m for m in messages)
+    assert any("whole ticket is worth $0.58" in m for m in messages)
 
 
 def test_threshold_can_be_changed():
-    before = doc("2026-09-23T11:17:00Z", max_draw=1272, max_value=0.35)
-    assert threshold_alerts(before, CLEAN_NOW, threshold=0.47)  # Lotto Max's whole ticket reaches $0.47 on draw 1273
-    assert not threshold_alerts(before, CLEAN_NOW, threshold=0.50)
+    before = doc("2026-09-23T11:17:00Z", max_draw=1272, max_value=0.40)
+    assert threshold_alerts(before, CLEAN_NOW, threshold=0.52)  # Lotto Max's whole ticket reaches $0.52 on draw 1273
+    assert not threshold_alerts(before, CLEAN_NOW, threshold=0.55)
 
 
 def threshold_alerts(previous, current, **kwargs):
@@ -123,7 +123,7 @@ def test_after_a_draw_says_keep_playing_the_same_pick():
     # Saturday's 6/49 draw is done and #4455's jackpot is posted; Lotto Max is still the pick
     after = doc("2026-09-27T05:40:00Z", g649_draw=4455)
     assert alerts.value_alerts(CLEAN_NOW, after) == [
-        "After Saturday's Lotto 6/49 draw: keep playing Lotto Max: $0.37 back per $1 for Fri Sep 25 "
+        "After Saturday's Lotto 6/49 draw: keep playing Lotto Max: $0.42 back per $1 for Fri Sep 25 "
         "($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
     ]
 
@@ -133,7 +133,7 @@ def test_after_a_draw_with_nothing_worth_playing_says_so():
     after = doc("2026-09-27T05:40:00Z", max_value=0.31, g649_draw=4455)
     assert alerts.value_alerts(before, after) == [
         "After Saturday's Lotto 6/49 draw: still nothing worth playing. The better one, Lotto Max, is at "
-        "$0.31 back per $1, under your $0.35 minimum."
+        "$0.31 back per $1, under your $0.40 minimum."
     ]
 
 
@@ -141,13 +141,13 @@ def test_two_draws_stored_by_one_run_share_one_message():
     # say a night's watch failed: Friday's Lotto Max and Saturday's 6/49 arrive together
     after = doc("2026-09-27T11:17:00Z", max_draw=1274, g649_draw=4455)
     assert alerts.value_alerts(CLEAN_NOW, after) == [
-        "After Friday's Lotto Max and Saturday's Lotto 6/49 draws: keep playing Lotto Max: $0.37 back per $1 "
+        "After Friday's Lotto Max and Saturday's Lotto 6/49 draws: keep playing Lotto Max: $0.42 back per $1 "
         "for Fri Sep 25 ($60M jackpot + 6 x $1M). Lotto 6/49 is at $0.22."
     ]
 
 
 def test_a_changed_pick_after_a_draw_sends_only_the_change():
-    after = doc("2026-09-27T05:40:00Z", best=model.LOTTO_649, max_value=0.36, g649_value=0.39, g649_draw=4455)
+    after = doc("2026-09-27T05:40:00Z", best=model.LOTTO_649, max_value=0.41, g649_value=0.44, g649_draw=4455)
     messages = alerts.value_alerts(CLEAN_NOW, after)
     assert len(messages) == 1 and messages[0].startswith("Lotto 6/49 is now the better buy")
 

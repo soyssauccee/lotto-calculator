@@ -58,7 +58,7 @@ noted, and becomes an error if they are still missing 12 hours after the draw.
 | `source`, `as_of` | where and when it was read; `stale: true` if every source failed |
 
 Top-level `recommendation` says whether either game is worth playing (`play`, which is false when
-both are under `min_per_dollar`, $0.35 in big prizes). It also names the better buy on big prizes
+both are under `min_per_dollar`, $0.40 in big prizes). It also names the better buy on big prizes
 (`top_prizes`) and on all prizes (`all_prizes`), with the `margin` per $1 and `close_call: true`
 when the runner-up could come out ahead within the forecast ranges. Top-level `errors` and
 `warnings` list what went wrong in the last run.
@@ -132,7 +132,7 @@ times the share you keep if others win it too.
   per $1: fixed prizes at their odds, free plays at the game conditions' deemed value, and each
   pool's expected share.
 
-**Minimum to play.** When both games are under $0.35 back per $1 in big prizes
+**Minimum to play.** When both games are under $0.40 back per $1 in big prizes
 (`MIN_WORTH_PLAYING` in `lottocalc/value.py`), neither is recommended and the page says "Skip
 for now". The minimum is judged on big prizes, because all-prize values run about $0.20 higher.
 
@@ -166,8 +166,8 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
   and the jackpot must be won by the draw where the gold ball is the last one left (worked out
   from the balls remaining, at $2M per white ball); Lotto Max has no must-win draw
 - two charts side by side of value per $1 since Lotto Max's current game began (Apr 14, 2026),
-  so both lines span the chart, up to the last 12 months; one for big prizes (with the $0.35 minimum)
-  and one for the whole ticket with every prize (with a $0.50 guide line); each game's line is
+  so both lines span the chart, up to the last 12 months; one for big prizes (with the $0.40 minimum)
+  and one for the whole ticket with every prize (with a $0.55 guide line); each game's line is
   brighter above the minimum and softer below it (tap a point for details). The Big prizes /
   All prizes toggle switches the recommendation's bars between the two minimums
 - when the data was last updated, with warnings for failed or stale updates
@@ -207,9 +207,9 @@ After each Scrape run, `alert.py` sends these alerts:
   verdict didn't change, "keep playing" the pick (or "still nothing worth playing" when both
   are under the minimum). A changed verdict sends its own alert instead.
 - **Value alerts.** When the verdict changes (a game becomes worth playing, the pick switches
-  games, or both fall under the $0.35 minimum), and when a draw is worth at least
+  games, or both fall under the $0.40 minimum), and when a draw is worth at least
   `VALUE_ALERT_THRESHOLD` per $1 for the whole ticket, every prize counted (a repository
-  variable, $0.50 by default, matching the whole-ticket chart's line). Each draw alerts at
+  variable, $0.55 by default, matching the whole-ticket chart's line). Each draw alerts at
   most once for the threshold. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
   they are posted as comments on a `value-alert` issue. With ntfy set up, opening and closing a
   `data-problem` issue is pushed to the phone too.

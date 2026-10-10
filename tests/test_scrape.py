@@ -112,7 +112,7 @@ def test_next_draw_forecasts_come_from_the_stored_history():
     assert lottomax["low"] < lottomax["plays"] < lottomax["high"]
     # $60M Lotto Max with 6 MAXMILLIONS beats a fresh $10M Gold Ball
     assert next_doc["recommendation"]["top_prizes"]["game"] == model.LOTTO_MAX
-    assert next_doc["recommendation"]["play"] is False  # about $0.33, under the $0.35 minimum
+    assert next_doc["recommendation"]["play"] is False  # about $0.33, under the $0.40 minimum
     assert next_doc[model.LOTTO_MAX]["value"]["per_dollar"] > next_doc[model.LOTTO_649]["value"]["per_dollar"]
     assert all(d["value_per_dollar"] for d in draws)
     json.dumps(next_doc)  # plain JSON types only
