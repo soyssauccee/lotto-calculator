@@ -58,7 +58,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          VALUE_ALERT_THRESHOLD: ${{ vars.VALUE_ALERT_THRESHOLD }}
         run: python alert.py --previous "$RUNNER_TEMP/previous-next.json" --log "$RUNNER_TEMP/scrape.log"
 
   deploy:

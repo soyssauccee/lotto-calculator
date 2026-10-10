@@ -23,7 +23,7 @@ const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const MAX_TICKET_PLAYS = { lottomax: 5, lotto649: 10 }; // the most plays one ticket holds: $30 either way
 const DEFAULT_MINIMUM = 0.4; // matches MIN_WORTH_PLAYING in lottocalc/value.py
-const WHOLE_TICKET_MINIMUM = 0.55; // the whole-ticket guide: the dashed line on its chart and bars
+const WHOLE_TICKET_MINIMUM = 0.55; // the whole-ticket guide: the dashed line on its chart and bars (DEFAULT_VALUE_THRESHOLD in lottocalc/alerts.py)
 const GOLD_BALL_STEP = 2e6; // each white ball adds $2M (GOLD_BALL_STEP in lottocalc/model.py)
 const DRAW_DAYS = { lotto649: [3, 6], lottomax: [2, 5] }; // Wed/Sat, Tue/Fri
 

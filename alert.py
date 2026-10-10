@@ -9,7 +9,7 @@ pushed to the ntfy.sh topic in NTFY_TOPIC when that secret is set, and are
 otherwise posted as comments on a "Value alerts" issue. With NTFY_TOPIC set,
 opening and closing the problem issue is pushed to the phone as well.
 
-Needs GITHUB_TOKEN and GITHUB_REPOSITORY; VALUE_ALERT_THRESHOLD is optional.
+Needs GITHUB_TOKEN and GITHUB_REPOSITORY.
 """
 import argparse
 import os
@@ -81,7 +81,7 @@ def try_push(topic, message, click_url, **options):
     return None
 
 
-def handle(github, previous, current, *, owner, run_url, page_url, log_tail="", ntfy_topic=None, threshold=None, now=None):
+def handle(github, previous, current, *, owner, run_url, page_url, log_tail="", ntfy_topic=None, now=None):
     """Open, leave or close the data-problem issue, and send value alerts. Returns what was done."""
     done = []
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M UTC")
@@ -115,7 +115,7 @@ def handle(github, previous, current, *, owner, run_url, page_url, log_tail="", 
         done.append("problem noted; alerting only if the next run also has it" if open_number is None
                     else f"problem continues; issue #{open_number} is already open")
 
-    messages = alerts.value_alerts(previous, current, alerts.DEFAULT_VALUE_THRESHOLD if threshold is None else threshold)
+    messages = alerts.value_alerts(previous, current)
     for message in messages:
         if ntfy_topic:
             failure = try_push(ntfy_topic, message, page_url)
@@ -145,7 +145,6 @@ def main(argv=None):
     owner, name = repository.split("/")
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     run_id = os.environ.get("GITHUB_RUN_ID")
-    threshold = os.environ.get("VALUE_ALERT_THRESHOLD") or None
     log_tail = "\n".join(args.log.read_text(encoding="utf-8", errors="replace").splitlines()[-30:]) if args.log and args.log.exists() else ""
 
     done = handle(
@@ -157,7 +156,6 @@ def main(argv=None):
         page_url=f"https://{owner}.github.io/{name}/",
         log_tail=log_tail,
         ntfy_topic=os.environ.get("NTFY_TOPIC") or None,
-        threshold=float(threshold) if threshold else None,
     )
     print("\n".join(done) or "nothing to report")
     return 0

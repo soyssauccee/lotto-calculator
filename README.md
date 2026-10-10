@@ -207,9 +207,9 @@ After each Scrape run, `alert.py` sends these alerts:
   verdict didn't change, "keep playing" the pick (or "still nothing worth playing" when both
   are under the minimum). A changed verdict sends its own alert instead.
 - **Value alerts.** When the verdict changes (a game becomes worth playing, the pick switches
-  games, or both fall under the $0.40 minimum), and when a draw is worth at least
-  `VALUE_ALERT_THRESHOLD` per $1 for the whole ticket, every prize counted (a repository
-  variable, $0.55 by default, matching the whole-ticket chart's line). Each draw alerts at
+  games, or both fall under the $0.40 minimum), and when a draw is worth at least $0.55 per $1
+  for the whole ticket, every prize counted (`DEFAULT_VALUE_THRESHOLD` in `lottocalc/alerts.py`,
+  matching the whole-ticket chart's line). Each draw alerts at
   most once for the threshold. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise
   they are posted as comments on a `value-alert` issue. With ntfy set up, opening and closing a
   `data-problem` issue is pushed to the phone too.

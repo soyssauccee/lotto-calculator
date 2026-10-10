@@ -9,7 +9,7 @@ from . import model, value
 # Warnings that mean a source is degrading even though the data is still current.
 DEGRADED_MARKERS = ("backup source", "unreadable")
 CRASHED = "The scraper stopped before writing new data. The run log has the details."
-DEFAULT_VALUE_THRESHOLD = 0.55
+DEFAULT_VALUE_THRESHOLD = 0.55  # whole-ticket value per $1 that sends an alert; matches WHOLE_TICKET_MINIMUM in web/app.js
 
 
 def problems(doc):
