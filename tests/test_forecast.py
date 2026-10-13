@@ -137,8 +137,9 @@ def test_forecast_for_a_draw_the_history_has_not_seen(history):
 
 
 def test_lotto_max_forecast_on_real_history(history):
+    # #1273 ($60M, 2026-09-25) sold 5,587,219 plays; the history stops at #1272 ($55M).
     upcoming = {"draw_number": 1273, "draw_date": "2026-09-25", "jackpot": 60_000_000}
     result = forecast.forecast_next(model.LOTTO_MAX, [d for d in history if d["game"] == model.LOTTO_MAX], upcoming)
-    assert 4_500_000 < result["plays"] < 6_500_000
+    assert result["plays"] == pytest.approx(5_587_219, rel=0.06)
     assert result["low"] < result["plays"] < result["high"]
     assert result["assumes_no_super_draw"] is False

@@ -95,25 +95,29 @@ fitted on what is known before the draw:
 - 6/49: the Gold Ball jackpot and its square, 1/balls, whether the jackpot is guaranteed
   (1 ball left), Saturday, Super Draw prize money, the Dec 15–Jan 1 holidays, a slow trend
   (about −4.5% a year), and a launch dummy for the format's first week.
-- Lotto Max: the jackpot and its square, and Friday.
+- Lotto Max: the jackpot, e^(jackpot ÷ $30M) for sales that take off faster as the jackpot
+  nears a record, and Friday. At the $90M cap the jackpot stops growing; the level
+  correction below then follows what the growing MAXMILLIONS add.
 
-The fit is then nudged by 0.7 × the average miss on the last 4 draws, because sales drift
-in runs.
+The fit is then nudged toward the average miss on recent draws, because sales drift in runs:
+0.7 × the last 4 draws' for 6/49, and the full average of the last 2 for Lotto Max, whose
+runs are sharper.
 
 Walk-forward backtest, where each draw is predicted only from the draws before it (as of
-October 9, 2026):
+October 13, 2026):
 
 | | Draws | Avg error | Median | Within ±15% | 80% range held |
 |---|---|---|---|---|---|
-| Lotto 6/49 | 325 | 2.8% | 2.1% | 98.8% | 81% |
-| Lotto Max | 35 | 2.6% | 2.6% | 100% | 67% |
+| Lotto 6/49 | 326 | 2.8% | 2.1% | 98.8% | 81% |
+| Lotto Max | 36 | 1.9% | 1.5% | 100% | 69% |
 
 6/49 errors are larger on special draws (5.0% with ≤5 balls, a Super Draw or the holidays,
-vs 2.3% otherwise), so those draws get their own, wider range. Upcoming Super Draws are not
+vs 2.4% otherwise), so those draws get their own, wider range. Upcoming Super Draws are not
 announced anywhere this project can read, so forecasts assume a normal draw. Lotto Max's
-$60M–$75M draws from late September on sold 4.6–6.7% more than forecast, above any jackpot
-its current format had seen, so its ranges have held less often than they should; that
-barely matters for its value, which a 6% sales miss moves by under 1%.
+model took this shape in October 2026, after its first run to $80M sold 5–11% more per draw
+than the earlier model (the jackpot and its square, 0.7 × the last 4 misses) forecast: 2.9%
+average error and growing misses, against 1.9% and no bias now. A sales miss barely matters
+for Lotto Max's value anyway: 6% moves it by under 1%.
 
 ## Value
 

@@ -21,8 +21,10 @@ import numpy as np
 
 from . import model
 
-LEVEL_WEIGHT = 0.7  # how much of the recent average miss to carry into the forecast
-LEVEL_DRAWS = 4  # how many recent draws that average covers
+# How much of the recent average miss to carry into the forecast, and over how many draws.
+# Lotto Max's sales move in sharper runs (seen in its $60M-$80M run of fall 2026), so it
+# follows its last two draws fully.
+LEVEL_CORRECTION = {model.LOTTO_649: (0.7, 4), model.LOTTO_MAX: (1.0, 2)}
 RANGE = (0.10, 0.90)  # quantiles of past errors that bound the 80% range
 Z_80 = 1.2816  # the same quantiles for normally distributed errors, in standard deviations
 MIN_TRAINING = {model.LOTTO_649: 100, model.LOTTO_MAX: 16}  # draws before the first backtest prediction
@@ -60,7 +62,9 @@ def _features_max(draw):
     jackpot = draw["jackpot"] / 1e7
     return {
         "jackpot": jackpot,
-        "jackpot_sq": jackpot**2,
+        # sales take off faster and faster as the jackpot nears records; at the $90M cap it
+        # stops growing, and the level correction follows whatever the extra MAXMILLIONS add
+        "jackpot_fever": np.exp(jackpot / 3),
         "friday": float(date.fromisoformat(draw["draw_date"]).weekday() == 4),
     }
 
@@ -84,11 +88,12 @@ def _design(game, draws):
     return np.array([[1.0, *row.values()] for row in rows])
 
 
-def _log_forecast(X, y, x_next):
-    """Fit on (X, y), forecast x_next, and apply the recent-level correction."""
+def _log_forecast(game, X, y, x_next):
+    """Fit on (X, y), forecast x_next, and apply the game's recent-level correction."""
     beta, *_ = np.linalg.lstsq(X, y, rcond=None)
-    recent = (y - X @ beta)[-LEVEL_DRAWS:]
-    return float(x_next @ beta + LEVEL_WEIGHT * recent.mean())
+    weight, draws = LEVEL_CORRECTION[game]
+    recent = (y - X @ beta)[-draws:]
+    return float(x_next @ beta + weight * recent.mean())
 
 
 NEEDED = {
@@ -111,7 +116,7 @@ def backtest(game, draws):
     y = np.log([d["est_plays"] for d in history])
     predictions = []
     for i in range(MIN_TRAINING[game], len(history)):
-        log_predicted = _log_forecast(X[:i], y[:i], X[i])
+        log_predicted = _log_forecast(game, X[:i], y[:i], X[i])
         predictions.append(Prediction(
             draw_number=history[i]["draw_number"],
             draw_date=history[i]["draw_date"],
@@ -173,7 +178,7 @@ def forecast_next(game, draws, upcoming):
     X = _design(game, history)
     y = np.log([d["est_plays"] for d in history])
     upcoming_is_special = SPECIAL[game](upcoming)
-    log_plays = _log_forecast(X, y, _design(game, [upcoming])[0])
+    log_plays = _log_forecast(game, X, y, _design(game, [upcoming])[0])
     low, high = _error_range(predictions, upcoming_is_special)
     stats = accuracy(predictions)
     return {
