@@ -1,46 +1,46 @@
 {
-  "scraped_at": "2026-10-15T00:33:58Z",
+  "scraped_at": "2026-10-15T04:26:12Z",
   "lotto649": {
-    "draw_number": 4459,
-    "draw_date": "2026-10-14",
+    "draw_number": 4460,
+    "draw_date": "2026-10-17",
     "jackpot": 5000000,
-    "gold_ball_amount": 22000000,
-    "balls_remaining": 24,
+    "gold_ball_amount": 24000000,
+    "balls_remaining": 23,
     "source": "wclc",
     "forecast": {
-      "plays": 4014006,
-      "low": 3851149,
-      "high": 4140980,
+      "plays": 4416558,
+      "low": 4237621,
+      "high": 4556895,
       "special": false,
       "assumes_no_super_draw": true,
-      "backtest_mape": 0.0281,
-      "backtest_draws": 326
+      "backtest_mape": 0.0283,
+      "backtest_draws": 327
     },
     "value": {
-      "per_dollar": 0.2593,
+      "per_dollar": 0.2531,
       "per_dollar_range": [
-        0.2541,
-        0.2665
+        0.248,
+        0.2601
       ],
-      "per_dollar_all_prizes": 0.44,
+      "per_dollar_all_prizes": 0.4342,
       "per_dollar_all_prizes_range": [
-        0.4349,
-        0.4469
+        0.4292,
+        0.4411
       ],
       "parts": {
-        "gold_ball": 0.1557,
-        "classic_jackpot": 0.1036,
+        "gold_ball": 0.1509,
+        "classic_jackpot": 0.1022,
         "super_draw": 0.0,
-        "lower_tiers": 0.1807
+        "lower_tiers": 0.1811
       },
       "odds_one_in": {
-        "jackpot": 96336144,
+        "jackpot": 101580834,
         "classic_jackpot": 13983816,
-        "million_plus": 3118773
+        "million_plus": 3356472
       },
       "price": 3
     },
-    "as_of": "2026-10-15T00:33:58Z"
+    "as_of": "2026-10-15T04:26:12Z"
   },
   "lottomax": {
     "draw_number": 1279,
@@ -82,7 +82,7 @@
       },
       "price": 6
     },
-    "as_of": "2026-10-15T00:33:58Z"
+    "as_of": "2026-10-15T04:26:12Z"
   },
   "recommendation": {
     "play": true,
@@ -90,15 +90,15 @@
     "top_prizes": {
       "game": "lottomax",
       "per_dollar": 0.4718,
-      "runner_up_per_dollar": 0.2593,
-      "margin": 0.2125,
+      "runner_up_per_dollar": 0.2531,
+      "margin": 0.2187,
       "close_call": false
     },
     "all_prizes": {
       "game": "lottomax",
       "per_dollar": 0.6698,
-      "runner_up_per_dollar": 0.44,
-      "margin": 0.2298,
+      "runner_up_per_dollar": 0.4342,
+      "margin": 0.2356,
       "close_call": false
     }
   },
