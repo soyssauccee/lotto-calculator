@@ -107,7 +107,7 @@ def test_next_draw_forecasts_come_from_the_stored_history():
 
     assert (report.errors, report.warnings) == ([], [])
     lotto649, lottomax = next_doc[model.LOTTO_649]["forecast"], next_doc[model.LOTTO_MAX]["forecast"]
-    assert lotto649["plays"] == pytest.approx(3_745_427, rel=1e-6)  # #4453 actually sold 3,651,921
+    assert lotto649["plays"] == pytest.approx(3_761_610, rel=1e-6)  # #4453 actually sold 3,651,921
     assert lotto649["low"] < 3_651_921 < lotto649["high"]
     assert lottomax["low"] < lottomax["plays"] < lottomax["high"]
     # $60M Lotto Max with 6 MAXMILLIONS beats a fresh $10M Gold Ball

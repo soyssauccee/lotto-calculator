@@ -99,19 +99,20 @@ fitted on what is known before the draw:
   nears a record, and Friday. At the $90M cap the jackpot stops growing; the level
   correction below then follows what the growing MAXMILLIONS add.
 
-The fit is then nudged toward the average miss on recent draws, because sales drift in runs:
-0.7 × the last 4 draws' for 6/49, and the full average of the last 2 for Lotto Max, whose
-runs are sharper.
+Sales drift in runs, so the forecast then adds the full average miss of the last 2 draws.
+6/49 used 0.7 × the last 4 until October 2026, when that fell behind during Lotto Max's record
+run (6/49 sold more than forecast 5 draws in a row, by up to 8.9%); the full last 2 is as good
+or better over the whole history (2.7% vs 2.8% average error).
 
 Walk-forward backtest, where each draw is predicted only from the draws before it (as of
-October 13, 2026):
+October 15, 2026):
 
 | | Draws | Avg error | Median | Within ±15% | 80% range held |
 |---|---|---|---|---|---|
-| Lotto 6/49 | 326 | 2.8% | 2.1% | 98.8% | 81% |
-| Lotto Max | 36 | 1.9% | 1.5% | 100% | 69% |
+| Lotto 6/49 | 327 | 2.7% | 1.9% | 98.5% | 82% |
+| Lotto Max | 37 | 2.1% | 1.6% | 100% | 65% |
 
-6/49 errors are larger on special draws (5.0% with ≤5 balls, a Super Draw or the holidays,
+6/49 errors are larger on special draws (4.6% with ≤5 balls, a Super Draw or the holidays,
 vs 2.4% otherwise), so those draws get their own, wider range. Upcoming Super Draws are not
 announced anywhere this project can read, so forecasts assume a normal draw. Lotto Max's
 model took this shape in October 2026, after its first run to $80M sold 5–11% more per draw
