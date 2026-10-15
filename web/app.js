@@ -511,7 +511,6 @@ function drawNumbers(count, highest) {
 
 const sorted = (numbers) => [...numbers].sort((a, b) => a - b);
 const quickPick = (g) => sorted(drawNumbers(g.pick, g.highest));
-const goldNumber = () => `${String(randomInt(1e8)).padStart(8, "0")}-${String(randomInt(100)).padStart(2, "0")}`;
 const cash = (n) => (n >= 1e4 ? money(n) : "$" + (Number.isInteger(n) ? n.toLocaleString("en-CA") : n.toFixed(2)));
 
 // A ticket is your own sets of numbers, one per play, then any Quick Pick plays, up to $30.
@@ -547,31 +546,27 @@ function playTicket(game) {
   // lines to every play, as on a real ticket
   const lines = Array.from({ length: plays }, (_, p) => [own[p] ?? quickPick(g), ...Array.from({ length: g.lines - 1 }, () => quickPick(g))]).flat();
   const drawn = drawNumbers(g.pick + 1, g.highest); // the main numbers, then the bonus
-  const r = { game, plays, own: own.length, lines, drawn, main: drawn.slice(0, g.pick), bonus: drawn[g.pick] };
+  const r = { game, plays, lines, drawn, main: drawn.slice(0, g.pick), bonus: drawn[g.pick] };
   r.lineWins = lines.map((line) => {
     const hits = line.filter((n) => r.main.includes(n)).length;
     return hits < g.minHits ? null : prize(game, `${hits}/${g.pick}${g.plus.includes(hits) && line.includes(r.bonus) ? "+B" : ""}`, info);
   });
   r.wins = r.lineWins.filter(Boolean);
   if (game === "lottomax") {
+    // each MAXPLUS and MAXMILLIONS series wins on an exact match with one of your lines
     const mine = new Set(lines.map((line) => line.join()));
-    const series = (count, amount, label) =>
-      Array.from({ length: count }, () => {
-        const set = quickPick(g);
-        if (mine.has(set.join())) r.wins.push({ label, amount, note: "win or share" });
-        return set;
-      });
-    r.maxplus = series(info.maxplus_count, info.maxplus_prize, "MAXPLUS");
-    r.maxmillions = series(info.maxmillions_count, 1e6, "MAXMILLIONS");
+    const series = (count, amount, label) => {
+      for (let i = 0; i < count; i++) if (mine.has(quickPick(g).join())) r.wins.push({ label, amount, note: "win or share" });
+    };
+    series(info.maxplus_count, info.maxplus_prize, "MAXPLUS");
+    series(info.maxmillions_count, 1e6, "MAXMILLIONS");
+    Object.assign(r, { maxplus: info.maxplus_count, maxmillions: info.maxmillions_count });
   } else {
-    // the numbers sold, which only the forecast knows before the draw
-    r.issued = info.forecast?.plays ?? state.draws.filter((d) => d.game === game).at(-1).est_plays;
-    r.yours = Array.from({ length: plays }, goldNumber); // one per play
-    const pick = randomInt(r.issued); // yours are `plays` of the numbers sold
-    r.winning = r.yours[pick] ?? goldNumber();
-    r.balls = info.balls_remaining;
-    r.gold = randomInt(r.balls) === 0;
-    if (pick < plays) r.wins.push(r.gold ? { label: "Gold Ball jackpot", amount: info.gold_ball_amount } : { label: "Gold Ball draw", amount: 1e6 });
+    // one Gold Ball number from all those sold (the forecast's count), of which `plays` are yours
+    const issued = info.forecast?.plays ?? state.draws.filter((d) => d.game === game).at(-1).est_plays;
+    r.goldBall = randomInt(issued) < plays;
+    r.gold = randomInt(info.balls_remaining) === 0;
+    if (r.goldBall) r.wins.push(r.gold ? { label: "Gold Ball jackpot", amount: info.gold_ball_amount } : { label: "Gold Ball draw", amount: 1e6 });
   }
   return r;
 }
@@ -579,15 +574,22 @@ function playTicket(game) {
 const ballHtml = (n, cls = "") => `<span class="ball ${cls}">${n}</span>`;
 const prizeAmount = (w) => (w.free ? "Free Play" : cash(w.amount));
 
-// "2 × 3/7: Free Play; 4/7: $20", with the total when there's more than one prize
+// "You won $20 and a Free Play"
+function wonText(wins) {
+  const total = wins.reduce((sum, w) => sum + (w.free ? 0 : w.amount), 0);
+  const free = wins.filter((w) => w.free).length;
+  const parts = [total && cash(total), free && (free > 1 ? `${free} Free Plays` : "a Free Play")].filter(Boolean);
+  return parts.length ? `You won ${parts.join(" and ")}` : "No prize this time";
+}
+
+// "2 × 3/7: Free Play · 4/7: $20"
 function prizesText(wins) {
   const counts = new Map();
   for (const w of wins) {
     const text = `${w.label}: ${prizeAmount(w)}${w.note ? ` (${w.note})` : ""}`;
     counts.set(text, (counts.get(text) ?? 0) + 1);
   }
-  const list = [...counts].map(([text, n]) => (n > 1 ? `${n} × ${text}` : text)).join("; ");
-  return wins.length > 1 ? `${list}. ${cash(wins.reduce((sum, w) => sum + w.amount, 0))} in all` : list;
+  return [...counts].map(([text, n]) => (n > 1 ? `${n} × ${text}` : text)).join(" · ");
 }
 
 function simTicketHtml() {
@@ -602,7 +604,7 @@ function simTicketHtml() {
       return `<button type="button" data-num="${i + 1}" aria-pressed="${on}"${done && !on ? " disabled" : ""}>${i + 1}</button>`;
     });
     return `
-      <p class="kicker">Set ${editing + 1} of your numbers · ${set.length} of ${g.pick} picked</p>
+      <p class="kicker">Pick ${g.pick} numbers · ${set.length} picked</p>
       <div class="sim-grid">${grid.join("")}</div>
       <div class="sim-actions">
         <button type="button" data-act="done" class="primary"${done ? "" : " disabled"}>Done</button>
@@ -620,14 +622,13 @@ function simTicketHtml() {
       <button type="button" data-act="add" data-kind="${kind}" aria-label="${label}: one more"${full ? " disabled" : ""}>+</button>
     </div>`;
   const rows = sets.map((set, i) => `
-    <div class="sim-set"><span class="balls small">${set.map((n) => ballHtml(n)).join("")}</span><button type="button" data-act="change" data-set="${i}">Change</button></div>`);
-  const extra = sim.game === "lottomax" ? "Every play also gets 3 Quick Pick lines, as on a real ticket." : "Every play also gets its own Gold Ball number.";
+    <div class="sim-set"><span class="sim-nums">${set.map((n) => `<span>${n}</span>`).join("")}</span><button type="button" data-act="change" data-set="${i}">Change</button></div>`);
   return `
-    <p class="kicker">Your ticket · ${plays} play${plays > 1 ? "s" : ""} · $${g.price * plays}${full ? " · the most one ticket holds" : ""}</p>
+    <p class="kicker">Your ticket · $${g.price * plays}</p>
     ${stepper("Your numbers", sets.length, "own")}
     ${stepper("Quick Picks", quick, "quick")}
     ${rows.join("")}
-    <p class="caption">${extra} Quick Picks are new with each ticket; your numbers stay until you change them.</p>
+    ${sim.game === "lottomax" ? `<p class="caption">Each play also comes with 3 Quick Pick lines.</p>` : ""}
     <div class="sim-actions">
       <button type="button" data-act="draw" class="primary">Draw</button>
       <button type="button" data-act="draw100">Play 100 draws</button>
@@ -639,34 +640,24 @@ function simResultHtml(r) {
   const drawn = r.drawn.map((n, i) => `<span class="ball drawn${i === g.pick ? " bonus" : ""}" style="--i:${i}">${n}</span>`).join("");
   const mark = (n) => ballHtml(n, r.main.includes(n) ? "hit" : n === r.bonus ? "bonus" : "");
   const lines = r.lines.map((line, i) => {
-    const p = Math.floor(i / g.lines); // the play this line is on
-    // Lotto Max: a heading per play when there are several; 6/49: before your sets and before the Quick Picks
-    const head = r.game === "lottomax"
-      ? r.plays > 1 && i % g.lines === 0 ? `Play ${p + 1} · ${p < r.own ? "your numbers + 3 Quick Picks" : "Quick Picks"}` : ""
-      : i === 0 && r.own ? "Your numbers" : i === r.own ? "Quick Picks" : "";
+    const play = r.game === "lottomax" && r.plays > 1 && i % g.lines === 0 ? `<p class="sim-play">Play ${i / g.lines + 1}</p>` : "";
     const won = r.lineWins[i];
-    return `${head ? `<p class="sim-play">${head}</p>` : ""}<div class="sim-line"><span class="balls small">${line.map(mark).join("")}</span>${won ? `<b>${won.label} · ${prizeAmount(won)}</b>` : ""}</div>`;
+    return `${play}<div class="sim-line"><span class="balls small">${line.map(mark).join("")}</span>${won ? `<b>${won.label} · ${prizeAmount(won)}</b>` : ""}</div>`;
   });
-  const series = (label, sets, each) => {
-    const hit = r.wins.some((w) => w.label === label);
-    return `<details><summary>${label}: ${sets.length} sets of 7 drawn, ${money(each)} each for an exact match: ${hit ? "you matched one!" : "no match"}</summary>
-      <div class="sim-sets">${sets.map((s) => `<span>${s.join(" ")}</span>`).join("")}</div></details>`;
-  };
-  const extras = r.game === "lottomax"
-    ? series("MAXPLUS", r.maxplus, state.next.lottomax.maxplus_prize) + series("MAXMILLIONS", r.maxmillions, 1e6)
-    : `<p class="sim-numbers">Gold Ball draw: ${r.winning} drawn from about ${r.issued.toLocaleString("en-CA")} numbers sold; yours ${r.plays > 1 ? "were" : "was"} ${r.yours.join(", ")}.</p>
-       <p class="sim-numbers">Prize ball: ${r.gold ? `the gold ball, worth the ${money(state.next.lotto649.gold_ball_amount)} jackpot` : "a $1M ball"}, drawn from ${r.balls}.</p>`;
-  const won = r.wins.length ? `You won ${prizesText(r.wins)}.` : "No prize this time.";
+  const ball = r.gold ? `the gold ball (the ${money(state.next.lotto649.gold_ball_amount)} jackpot)` : "a $1M white ball";
+  const extra = r.game === "lottomax"
+    ? `${[r.maxplus && `${r.maxplus} MAXPLUS`, r.maxmillions && `${r.maxmillions} MAXMILLIONS`].filter(Boolean).join(" and ")} sets drawn too: ${
+        r.wins.some((w) => w.label.startsWith("MAX")) ? "you matched one!" : "no match."}`
+    : r.goldBall ? `Gold Ball draw: your number came up, with ${ball}!` : `Gold Ball draw: ${r.plays > 1 ? "none of your numbers" : "not your number"}; ${ball} went to another ticket.`;
   return `
     <div class="sim-draw" data-act="skip">
-      <p class="kicker">${r.game === "lottomax" ? "Main draw" : "Classic draw"} · tap to show all</p>
       <div class="balls">${drawn}</div>
       <div class="sim-after" style="--i:${r.drawn.length}">
-        <p class="sim-numbers">Winning numbers ${sorted(r.main).join(", ")}, bonus ${r.bonus}</p>
-        <p class="kicker">Your lines</p>
-        <div class="sim-lines">${lines.join("")}</div>
-        ${extras}
-        <p class="sim-won">${won}</p>
+        <p class="sim-won">${wonText(r.wins)}</p>
+        ${r.wins.length ? `<p class="caption">${prizesText(r.wins)}</p>` : ""}
+        <p class="sim-numbers">${extra}</p>
+        <details${r.lines.length <= 4 ? " open" : ""}><summary>Your ${r.lines.length > 1 ? `${r.lines.length} lines` : "line"}</summary>
+          <div class="sim-lines">${lines.join("")}</div></details>
       </div>
     </div>`;
 }
@@ -676,10 +667,10 @@ function simSummaryHtml(results) {
   const won = wins.reduce((sum, w) => sum + w.amount, 0);
   const ticket = SIM[sim.game].price * results[0].plays;
   const spent = results.length * ticket;
+  const best = wins.reduce((top, w) => (top && top.amount >= w.amount ? top : w), null);
   return `
-    <p class="kicker">${results.length} draws · a $${ticket} ticket each</p>
-    <p class="sim-won">${cash(spent)} spent, ${cash(won)} won back: ${perDollar(won / spent)} per $1.</p>
-    <p class="caption">Prizes: ${wins.length ? prizesText(wins) : "none"}. A Free Play counts as one play's price.</p>`;
+    <p class="sim-won">${cash(spent)} spent, ${cash(won)} back</p>
+    <p class="caption">${results.length} draws of this $${ticket} ticket: ${perDollar(won / spent)} back per $1${best ? `. Best prize: ${best.label}, ${prizeAmount(best)}` : ""}.</p>`;
 }
 
 function renderSim() {
@@ -688,7 +679,7 @@ function renderSim() {
   for (const button of document.querySelectorAll("#sim [data-game]")) button.setAttribute("aria-pressed", String(button.dataset.game === sim.game));
   document.getElementById("sim-ticket").innerHTML = simTicketHtml();
   document.getElementById("sim-tally").innerHTML = t
-    ? `${t.tickets.toLocaleString("en-CA")} ticket${t.tickets === 1 ? "" : "s"} · ${cash(t.spent)} spent · ${cash(t.won)} won · net ${t.won < t.spent ? "−" : "+"}${cash(Math.abs(t.won - t.spent))} <button type="button" data-act="reset">Reset</button>`
+    ? `So far: ${t.tickets.toLocaleString("en-CA")} ticket${t.tickets === 1 ? "" : "s"}, ${cash(t.spent)} spent, ${cash(t.won)} won <button type="button" data-act="reset">Reset</button>`
     : "";
 }
 
