@@ -306,7 +306,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .sim .kicker { margin: 16px 0 8px; }
 .sim .caption { margin-top: 8px; }
 .balls { display: flex; flex-wrap: wrap; gap: 6px; }
-.balls.small { margin-top: 6px; gap: 5px; }
+.balls.small { gap: 5px; }
 .ball { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--inset); border: 1.5px solid var(--rule); font-size: 14px; font-weight: 600; }
 .balls.small .ball { width: 28px; height: 28px; font-size: 12px; }
 .ball.drawn, .ball.hit { background: var(--accent); border-color: var(--accent); color: var(--bg); }
@@ -321,7 +321,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .sim-lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 6px 16px; margin-top: 8px; }
 .sim-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .sim-line b { font-size: 12px; font-weight: 600; }
-.sim-lines .balls.small { margin-top: 0; }
 .sim-play { grid-column: 1 / -1; margin-top: 6px; font-size: 12px; color: var(--text-3); }
 .sim-actions button, .sim-tally button, .sim-grid button, .sim-size button, .sim-set button {
   font: 500 13px/1.4 var(--font);

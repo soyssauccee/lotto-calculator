@@ -494,13 +494,21 @@ const SIM = {
 const SIM_KEY = "lotto-calculator.sim";
 
 // A whole number from 0 to n - 1, each equally likely: values from the top of the 32-bit
-// range, which would favour the small numbers, are thrown away and drawn again.
+// range, which would favour the small numbers, are thrown away and drawn again. The generator
+// fills 1,024 random words per call, as one call per number made a $30 ticket 4x slower.
+const randomWords = new Uint32Array(1024);
+let wordsUsed = randomWords.length;
 function randomInt(n) {
   const limit = 2 ** 32 - (2 ** 32 % n);
-  const value = new Uint32Array(1);
-  do crypto.getRandomValues(value);
-  while (value[0] >= limit);
-  return value[0] % n;
+  let word;
+  do {
+    if (wordsUsed === randomWords.length) {
+      crypto.getRandomValues(randomWords);
+      wordsUsed = 0;
+    }
+    word = randomWords[wordsUsed++];
+  } while (word >= limit);
+  return word % n;
 }
 
 // `count` different numbers from 1 to `highest`, in the order drawn.
@@ -534,7 +542,7 @@ function prize(game, key, info) {
   if (key === g.free) return { label, amount: g.price, free: true };
   if (g.fixed[key]) return { label, amount: g.fixed[key] };
   // a shared pool: what the last real draw paid in it
-  return { label, amount: state.draws.filter((d) => d.game === game && d.tier_prizes[key] != null).at(-1).tier_prizes[key], note: "as the last draw paid" };
+  return { label, amount: state.draws.findLast((d) => d.game === game && d.tier_prizes[key] != null).tier_prizes[key], note: "as the last draw paid" };
 }
 
 function playTicket(game) {
@@ -560,10 +568,9 @@ function playTicket(game) {
     };
     series(info.maxplus_count, info.maxplus_prize, "MAXPLUS");
     series(info.maxmillions_count, 1e6, "MAXMILLIONS");
-    Object.assign(r, { maxplus: info.maxplus_count, maxmillions: info.maxmillions_count });
   } else {
     // one Gold Ball number from all those sold (the forecast's count), of which `plays` are yours
-    const issued = info.forecast?.plays ?? state.draws.filter((d) => d.game === game).at(-1).est_plays;
+    const issued = info.forecast?.plays ?? state.draws.findLast((d) => d.game === game).est_plays;
     r.goldBall = randomInt(issued) < plays;
     r.gold = randomInt(info.balls_remaining) === 0;
     if (r.goldBall) r.wins.push(r.gold ? { label: "Gold Ball jackpot", amount: info.gold_ball_amount } : { label: "Gold Ball draw", amount: 1e6 });
@@ -571,7 +578,6 @@ function playTicket(game) {
   return r;
 }
 
-const ballHtml = (n, cls = "") => `<span class="ball ${cls}">${n}</span>`;
 const prizeAmount = (w) => (w.free ? "Free Play" : cash(w.amount));
 
 // "You won $20 and a Free Play"
@@ -637,16 +643,18 @@ function simTicketHtml() {
 
 function simResultHtml(r) {
   const g = SIM[r.game];
+  const info = state.next[r.game]; // the draw just played
   const drawn = r.drawn.map((n, i) => `<span class="ball drawn${i === g.pick ? " bonus" : ""}" style="--i:${i}">${n}</span>`).join("");
-  const mark = (n) => ballHtml(n, r.main.includes(n) ? "hit" : n === r.bonus ? "bonus" : "");
+  const mark = (n) => `<span class="ball ${r.main.includes(n) ? "hit" : n === r.bonus ? "bonus" : ""}">${n}</span>`;
   const lines = r.lines.map((line, i) => {
     const play = r.game === "lottomax" && r.plays > 1 && i % g.lines === 0 ? `<p class="sim-play">Play ${i / g.lines + 1}</p>` : "";
     const won = r.lineWins[i];
     return `${play}<div class="sim-line"><span class="balls small">${line.map(mark).join("")}</span>${won ? `<b>${won.label} · ${prizeAmount(won)}</b>` : ""}</div>`;
   });
-  const ball = r.gold ? `the gold ball (the ${money(state.next.lotto649.gold_ball_amount)} jackpot)` : "a $1M white ball";
+  const ball = r.gold ? `the gold ball (the ${money(info.gold_ball_amount)} jackpot)` : "a $1M white ball";
+  // MAXPLUS always has a series per $1M of jackpot; MAXMILLIONS only from $50M
   const extra = r.game === "lottomax"
-    ? `${[r.maxplus && `${r.maxplus} MAXPLUS`, r.maxmillions && `${r.maxmillions} MAXMILLIONS`].filter(Boolean).join(" and ")} sets drawn too: ${
+    ? `${info.maxplus_count} MAXPLUS${info.maxmillions_count ? ` and ${info.maxmillions_count} MAXMILLIONS` : ""} sets drawn too: ${
         r.wins.some((w) => w.label.startsWith("MAX")) ? "you matched one!" : "no match."}`
     : r.goldBall ? `Gold Ball draw: your number came up, with ${ball}!` : `Gold Ball draw: ${r.plays > 1 ? "none of your numbers" : "not your number"}; ${ball} went to another ticket.`;
   return `
@@ -675,8 +683,6 @@ function simSummaryHtml(results) {
 
 function renderSim() {
   const t = sim.tally[sim.game];
-  document.getElementById("sim").className = `card sim ${GAMES[sim.game].css}`;
-  for (const button of document.querySelectorAll("#sim [data-game]")) button.setAttribute("aria-pressed", String(button.dataset.game === sim.game));
   document.getElementById("sim-ticket").innerHTML = simTicketHtml();
   document.getElementById("sim-tally").innerHTML = t
     ? `So far: ${t.tickets.toLocaleString("en-CA")} ticket${t.tickets === 1 ? "" : "s"}, ${cash(t.spent)} spent, ${cash(t.won)} won <button type="button" data-act="reset">Reset</button>`
@@ -701,6 +707,9 @@ document.getElementById("sim").addEventListener("click", (event) => {
   const sets = sim.sets[sim.game];
   if (el.dataset.game) {
     sim.game = el.dataset.game; // each game keeps its own ticket, mid-pick included
+    // the game's colours and the switch only change here; index.html starts on Lotto Max
+    document.getElementById("sim").className = `card sim ${GAMES[sim.game].css}`;
+    for (const button of document.querySelectorAll("#sim [data-game]")) button.setAttribute("aria-pressed", String(button === el));
     result.innerHTML = "";
   } else if (el.dataset.num) {
     const n = Number(el.dataset.num);
