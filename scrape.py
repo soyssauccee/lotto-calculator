@@ -221,7 +221,7 @@ def summarize(next_doc, report, requests_made):
         )
     recommendation = next_doc.get("recommendation") or {}
     best = recommendation.get("top_prizes")
-    if best and recommendation.get("play", True):
+    if best and recommendation["play"]:
         lines.append(
             f"Best buy: {model.GAME_NAMES[best['game']]}, ${best['per_dollar']:.2f} vs ${best['runner_up_per_dollar']:.2f} "
             f"back per $1 in big prizes{' (close call)' if best['close_call'] else ''}"
@@ -250,8 +250,7 @@ def main(argv=None):
     parser.add_argument("--backfill", action="store_true", help="fetch every draw of the current format")
     parser.add_argument("--dry-run", action="store_true", help="fetch and report, but write nothing")
     args = parser.parse_args(argv)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+    sys.stdout.reconfigure(errors="replace")  # an odd character in a site's text mustn't crash a Windows console
 
     draws_path, next_path = args.data_dir / "draws.json", args.data_dir / "next.json"
     draws = store.load_draws(draws_path)

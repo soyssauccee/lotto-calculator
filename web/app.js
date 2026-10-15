@@ -22,8 +22,8 @@ const RELOAD_OPEN_MS = 15 * 60 * 1000; // while it stays open and visible
 const TICK_MS = 60 * 1000; // keeps "Updated … ago" current
 const BASIS_KEY = "lotto-calculator.basis";
 const MAX_TICKET_PLAYS = { lottomax: 5, lotto649: 10 }; // the most plays one ticket holds: $30 either way
-const DEFAULT_MINIMUM = 0.4; // matches MIN_WORTH_PLAYING in lottocalc/value.py
-const WHOLE_TICKET_MINIMUM = 0.55; // the whole-ticket guide: the dashed line on its chart and bars (DEFAULT_VALUE_THRESHOLD in lottocalc/alerts.py)
+const DEFAULT_MINIMUM = 0.4; // MIN_WORTH_PLAYING in lottocalc/value.py, for the chart while next.json has no recommendation
+const WHOLE_TICKET_MINIMUM = 0.55; // the whole-ticket guide: the dashed line on its chart and bars (WHOLE_TICKET_ALERT in lottocalc/alerts.py)
 const GOLD_BALL_STEP = 2e6; // each white ball adds $2M (GOLD_BALL_STEP in lottocalc/model.py)
 const DRAW_DAYS = { lotto649: [3, 6], lottomax: [2, 5] }; // Wed/Sat, Tue/Fri
 
@@ -107,7 +107,7 @@ function prizeLine(game, info) {
 
 function noticesHtml(next) {
   const notes = [];
-  if (next.errors && next.errors.length) {
+  if (next.errors.length) {
     const more = next.errors.length > 1 ? ` (and ${next.errors.length - 1} more)` : "";
     notes.push(["error", `The last update ran into a problem: ${next.errors[0]}${more}`]);
   }
@@ -125,14 +125,7 @@ function noticesHtml(next) {
 }
 
 function minimumToPlay(next) {
-  return (next.recommendation && next.recommendation.min_per_dollar) || DEFAULT_MINIMUM;
-}
-
-function worthPlaying(next) {
-  const recommendation = next.recommendation;
-  if (!recommendation) return false;
-  // next.json files written before the minimum existed lack "play"
-  return recommendation.play ?? recommendation.top_prizes.per_dollar >= minimumToPlay(next);
+  return next.recommendation?.min_per_dollar ?? DEFAULT_MINIMUM;
 }
 
 // Both games as bars from $0, with the minimum for the prizes counted marked across them.
@@ -171,7 +164,7 @@ function skipHtml(next) {
 }
 
 function verdictHtml(next, basis) {
-  const rec = next.recommendation && next.recommendation[basis];
+  const rec = next.recommendation?.[basis];
   if (!rec) {
     // Between a draw and the posting of the next jackpot, the source still lists the finished draw.
     const waiting = Object.keys(GAMES).some((g) => next[g] && !next[g].draw_number);
@@ -180,7 +173,7 @@ function verdictHtml(next, basis) {
       : "Not enough data to compare the games yet.";
     return `<p class="kicker">Recommendation</p><p class="verdict-sub">${message}</p>`;
   }
-  if (!worthPlaying(next)) return skipHtml(next);
+  if (!next.recommendation.play) return skipHtml(next);
   const best = rec.game;
   const other = otherGame(best);
   const counted = basis === "all_prizes" ? "all prizes" : "big prizes";
@@ -259,7 +252,7 @@ function gameHtml(game, info, basis) {
     ${guaranteeHtml(game, info)}`;
   const value = info.value;
   const forecast = info.forecast;
-  if (!value || !forecast) {
+  if (!value) {
     return `<section class="card game">${head(when)}${jackpot}<p class="note">No sales forecast yet, so no value.</p></section>`;
   }
 
@@ -268,12 +261,12 @@ function gameHtml(game, info, basis) {
   const [low, high] = all ? value.per_dollar_all_prizes_range : value.per_dollar_range;
   const parts = Object.entries(value.parts).filter(([key, v]) => v > 0 && (all || key !== "lower_tiers"));
   const total = parts.reduce((sum, [, v]) => sum + v, 0);
-  const shades = [1, 0.7, 0.5, 0.35, 0.22];
+  const shades = [1, 0.7, 0.5, 0.35]; // a game has at most four parts
   const bar = parts
-    .map(([, v], i) => `<span style="width:${(100 * v) / total}%;background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></span>`)
+    .map(([, v], i) => `<span style="width:${(100 * v) / total}%;background:var(--${g.css});opacity:${shades[i]}"></span>`)
     .join("");
   const legend = parts
-    .map(([key, v], i) => `<li><span><i style="background:var(--${g.css});opacity:${shades[i] ?? 0.2}"></i>${esc(PARTS[key] ?? key)}</span><b>${perDollar(v)}</b></li>`)
+    .map(([key, v], i) => `<li><span><i style="background:var(--${g.css});opacity:${shades[i]}"></i>${esc(PARTS[key])}</span><b>${perDollar(v)}</b></li>`)
     .join("");
   const rangeText = perDollar(low) !== perDollar(high)
     ? `${perDollar(low)}–${perDollar(high)} across the sales forecast`
@@ -330,7 +323,7 @@ function chartSeries(draws, next, chart) {
   start.setUTCMonth(start.getUTCMonth() - CHART_MONTHS); // ...and the same day a year earlier
   // ...but not before both games have draws (Lotto Max's are stored from its current game's
   // start), so neither line starts partway along
-  const firsts = Object.keys(GAMES).map((game) => draws.filter((d) => d.game === game).map((d) => d.draw_date).sort()[0] ?? "");
+  const firsts = Object.keys(GAMES).map((game) => draws.filter((d) => d.game === game).map((d) => d.draw_date).sort()[0]);
   const from = [start.toISOString().slice(0, 10), ...firsts].sort().pop();
   return Object.keys(GAMES).map((game) => ({
     game,
@@ -345,15 +338,10 @@ function chartSeries(draws, next, chart) {
 
 function renderChart(chart, draws, next) {
   const el = document.getElementById(chart.el);
-  if (!el) return; // a cached older index.html without this chart
   const readout = document.getElementById(chart.readout);
   readout.textContent = "Tap the chart for a draw's details.";
-  const series = draws.length ? chartSeries(draws, next, chart) : [];
+  const series = chartSeries(draws, next, chart);
   const all = series.flatMap((s) => s.points.concat(s.next ? [s.next] : []));
-  if (!all.length) {
-    el.innerHTML = `<p class="caption">No history yet.</p>`;
-    return;
-  }
   // Drawn at the chart's own width, one unit per CSS pixel, so labels keep their size in a
   // narrow column.
   const W = Math.max(150, Math.round(el.clientWidth || 360));
@@ -504,7 +492,7 @@ function setStatus(text, kind) {
 
 function showUpdated(next) {
   const hoursOld = (Date.now() - Date.parse(next.scraped_at)) / 36e5;
-  const health = next.errors && next.errors.length ? "error" : hoursOld > STALE_HOURS ? "stale" : "ok";
+  const health = next.errors.length ? "error" : hoursOld > STALE_HOURS ? "stale" : "ok";
   setStatus(`Updated ${agoText(next.scraped_at)}`, health);
 }
 
@@ -512,10 +500,8 @@ function render() {
   const { next, basis } = state;
   showUpdated(next);
   document.getElementById("notices").innerHTML = noticesHtml(next);
-  const caption = document.getElementById("whole-minimum"); // in the whole-ticket chart's caption
-  if (caption) caption.textContent = perDollar(WHOLE_TICKET_MINIMUM);
   document.getElementById("verdict").innerHTML = verdictHtml(next, basis);
-  const rec = next.recommendation && next.recommendation[basis];
+  const rec = next.recommendation?.[basis];
   const order = rec ? [rec.game, otherGame(rec.game)] : Object.keys(GAMES);
   document.getElementById("games").innerHTML = order.map((g) => gameHtml(g, next[g], basis)).join("");
   for (const button of document.querySelectorAll("#basis button")) {
@@ -538,7 +524,7 @@ let chartWidth = 0; // the width the charts were last drawn at
 
 function drawCharts() {
   for (const chart of CHARTS) renderChart(chart, state.draws, state.next);
-  chartWidth = document.getElementById("chart")?.clientWidth;
+  chartWidth = document.getElementById("chart").clientWidth;
 }
 
 function showProblem(text) {
@@ -583,7 +569,7 @@ let resizeTimer = 0;
 addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    if (state.next && document.getElementById("chart")?.clientWidth !== chartWidth) drawCharts();
+    if (state.next && document.getElementById("chart").clientWidth !== chartWidth) drawCharts();
   }, 150);
 });
 document.addEventListener("visibilitychange", () => {
@@ -596,4 +582,5 @@ setInterval(() => {
   if (state.failed || Date.now() - state.loadedAt > RELOAD_OPEN_MS) load();
   else if (state.next) showUpdated(state.next);
 }, TICK_MS);
+document.getElementById("whole-minimum").textContent = perDollar(WHOLE_TICKET_MINIMUM); // in the whole-ticket chart's caption
 load();

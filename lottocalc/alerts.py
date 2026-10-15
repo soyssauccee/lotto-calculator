@@ -4,12 +4,12 @@ Everything here compares the next.json a run started with to the one it wrote.
 """
 from datetime import date
 
-from . import model, value
+from . import model
 
 # Warnings that mean a source is degrading even though the data is still current.
 DEGRADED_MARKERS = ("backup source", "unreadable")
 CRASHED = "The scraper stopped before writing new data. The run log has the details."
-DEFAULT_VALUE_THRESHOLD = 0.55  # whole-ticket value per $1 that sends an alert; matches WHOLE_TICKET_MINIMUM in web/app.js
+WHOLE_TICKET_ALERT = 0.55  # whole-ticket value per $1 that sends an alert; matches WHOLE_TICKET_MINIMUM in web/app.js
 
 
 def problems(doc):
@@ -37,13 +37,10 @@ def should_report(previous, current):
 
 def verdict(doc):
     """The game a next.json recommends, "skip" if neither is worth playing, or None without a recommendation."""
-    recommendation = (doc or {}).get("recommendation") or {}
-    top = recommendation.get("top_prizes")
-    if not top:
+    recommendation = doc.get("recommendation")
+    if not recommendation:
         return None
-    # next.json files written before the minimum existed lack "play"
-    play = recommendation.get("play", top["per_dollar"] >= value.MIN_WORTH_PLAYING)
-    return top["game"] if play else "skip"
+    return recommendation["top_prizes"]["game"] if recommendation["play"] else "skip"
 
 
 def finished_draws(previous, current):
@@ -58,11 +55,11 @@ def finished_draws(previous, current):
     return games
 
 
-def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
+def value_alerts(previous, current):
     """Messages for a change of verdict (play one game, the other, or skip; judged on big prizes);
     after each draw, once the next jackpot is posted, whether to keep playing if the verdict
-    didn't change; and for a draw whose whole ticket, every prize counted, is worth `threshold`
-    or more per $1."""
+    didn't change; and for a draw whose whole ticket, every prize counted, is worth
+    WHOLE_TICKET_ALERT or more per $1."""
     if not current:
         return []
     previous = previous or {}
@@ -96,15 +93,15 @@ def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
         info = current.get(game) or {}
         values = info.get("value") or {}
         worth = values.get("per_dollar_all_prizes")
-        if worth is None or worth < threshold:
+        if worth is None or worth < WHOLE_TICKET_ALERT:
             continue
         earlier = previous.get(game) or {}
         earlier_worth = (earlier.get("value") or {}).get("per_dollar_all_prizes")
-        if earlier.get("draw_number") == info.get("draw_number") and earlier_worth is not None and earlier_worth >= threshold:
+        if earlier.get("draw_number") == info.get("draw_number") and (earlier_worth or 0) >= WHOLE_TICKET_ALERT:
             continue  # already alerted for this draw
         message = (
             f"{model.GAME_NAMES[game]}'s whole ticket is worth ${worth:.2f} back per $1 for the {info['draw_date']} "
-            f"draw ({_prizes(game, info)}), {_against(worth, threshold)} your ${threshold:.2f} alert."
+            f"draw ({_prizes(game, info)}), {_against(worth, WHOLE_TICKET_ALERT)} your ${WHOLE_TICKET_ALERT:.2f} alert."
         )
         if now == "skip":  # the play/skip verdict goes by big prizes, so say this doesn't change it
             big = values["per_dollar"]
@@ -116,9 +113,8 @@ def value_alerts(previous, current, threshold=DEFAULT_VALUE_THRESHOLD):
 def _after_draw(previous, current, finished, now):
     """The post-draw message when the verdict stayed the same."""
     held = " and ".join(
-        f"{date.fromisoformat(previous[g]['draw_date']):%A}'s {model.GAME_NAMES[g]}" if previous[g].get("draw_date")
-        else model.GAME_NAMES[g]
-        for g in sorted(finished, key=lambda g: previous[g].get("draw_date") or "")
+        f"{date.fromisoformat(previous[g]['draw_date']):%A}'s {model.GAME_NAMES[g]}"
+        for g in sorted(finished, key=lambda g: previous[g]["draw_date"])
     ) + (" draws" if len(finished) > 1 else " draw")
     recommendation = current["recommendation"]
     top = recommendation["top_prizes"]
@@ -142,7 +138,7 @@ def _against(amount, line):
 
 def _short_of(recommendation, amount):
     """'under your $0.40 minimum' for a big-prize value that is under it."""
-    minimum = recommendation.get("min_per_dollar", value.MIN_WORTH_PLAYING)  # files from before the minimum lack it
+    minimum = recommendation["min_per_dollar"]
     return f"{_against(amount, minimum)} your ${minimum:.2f} minimum"
 
 

@@ -212,7 +212,7 @@ After each Scrape run, `alert.py` sends these alerts:
   are under the minimum). A changed verdict sends its own alert instead.
 - **Value alerts.** When the verdict changes (a game becomes worth playing, the pick switches
   games, or both fall under the $0.40 minimum), and when a draw is worth at least $0.55 per $1
-  for the whole ticket, every prize counted (`DEFAULT_VALUE_THRESHOLD` in `lottocalc/alerts.py`,
+  for the whole ticket, every prize counted (`WHOLE_TICKET_ALERT` in `lottocalc/alerts.py`,
   matching the whole-ticket chart's line). Each draw alerts at
   most once for the threshold, and while both games are under the big-prize minimum that alert
   adds that the pick is still a skip. They go to the ntfy.sh topic in the `NTFY_TOPIC` secret if it is set, otherwise

@@ -91,7 +91,7 @@ def read_data():
 
 def read_state():
     """(draws, next_doc) as stored in the checkout."""
-    return store.load_draws(DATA_DIR / "draws.json"), read_data()["next.json"]
+    return store.load_draws(DATA_DIR / "draws.json"), store.load_json(DATA_DIR / "next.json")
 
 
 def git(*args):
@@ -139,16 +139,16 @@ class GitHub:
 
     def run_scrape(self):
         """Start the Scrape workflow and wait for it; True if it finished successfully."""
-        started = datetime.now(timezone.utc) - timedelta(seconds=5)
+        started = utcnow() - timedelta(seconds=5)
         self.dispatch("scrape.yml")
-        deadline = datetime.now(timezone.utc) + SCRAPE_WAIT
-        while datetime.now(timezone.utc) < deadline:
+        deadline = utcnow() + SCRAPE_WAIT
+        while utcnow() < deadline:
             time.sleep(20)
             runs = self.session.get(f"{self.workflow('scrape.yml')}/runs",
                                     params={"event": "workflow_dispatch", "per_page": 5}, timeout=30)
             runs.raise_for_status()
             for run in runs.json()["workflow_runs"]:
-                created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+                created = datetime.fromisoformat(run["created_at"])
                 if created >= started and run["status"] == "completed":
                     say(f"Scrape run {run['html_url']}: {run['conclusion']}")
                     return run["conclusion"] == "success"

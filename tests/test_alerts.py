@@ -7,14 +7,13 @@ from lottocalc import alerts, model
 
 
 def doc(stamp, errors=(), warnings=(), best=model.LOTTO_MAX, max_value=0.42, g649_value=0.22,
-        max_draw=1273, g649_draw=4454, balls=29, legacy=False, max_all=None, g649_all=None):
+        max_draw=1273, g649_draw=4454, balls=29, max_all=None, g649_all=None):
     """A next.json; whole-ticket values default to $0.10 over the big-prize ones."""
     max_all = round(max_value + 0.10, 4) if max_all is None else max_all
     g649_all = round(g649_value + 0.10, 4) if g649_all is None else g649_all
     runner_up = g649_value if best == model.LOTTO_MAX else max_value
-    recommendation = {"top_prizes": {"game": best, "per_dollar": max(max_value, g649_value), "runner_up_per_dollar": runner_up}}
-    if not legacy:  # next.json files from before the minimum lack these
-        recommendation.update(play=max(max_value, g649_value) >= 0.40, min_per_dollar=0.40)
+    recommendation = {"play": max(max_value, g649_value) >= 0.40, "min_per_dollar": 0.40,
+                      "top_prizes": {"game": best, "per_dollar": max(max_value, g649_value), "runner_up_per_dollar": runner_up}}
     return {
         "scraped_at": stamp,
         model.LOTTO_MAX: {"draw_number": max_draw, "draw_date": "2026-09-25", "jackpot": 60_000_000,
@@ -83,12 +82,6 @@ def test_no_alert_while_nothing_is_worth_playing():
     assert alerts.value_alerts(max_ahead, g649_ahead) == []
 
 
-def test_next_json_from_before_the_minimum_still_compares():
-    legacy = doc("2026-09-24T11:17:00Z", legacy=True)  # Lotto Max at $0.42, no "play" field
-    assert alerts.verdict(legacy) == model.LOTTO_MAX
-    assert alerts.value_alerts(legacy, CLEAN_NOW) == []
-
-
 def test_threshold_alert_fires_once_per_draw():
     rich = doc("2026-09-24T21:17:00Z", best=model.LOTTO_649, g649_value=0.37, g649_all=0.57, balls=9)
     first = alerts.value_alerts(doc("2026-09-24T11:17:00Z", best=model.LOTTO_649, g649_value=0.31, g649_all=0.50, balls=9), rich)
@@ -127,14 +120,8 @@ def test_a_value_that_rounds_to_its_minimum_is_worded_to_match():
     ]
 
 
-def test_threshold_can_be_changed():
-    before = doc("2026-09-23T11:17:00Z", max_draw=1272, max_value=0.40)
-    assert threshold_alerts(before, CLEAN_NOW, threshold=0.52)  # Lotto Max's whole ticket reaches $0.52 on draw 1273
-    assert not threshold_alerts(before, CLEAN_NOW, threshold=0.55)
-
-
-def threshold_alerts(previous, current, **kwargs):
-    return [m for m in alerts.value_alerts(previous, current, **kwargs) if "alert." in m]
+def threshold_alerts(previous, current):
+    return [m for m in alerts.value_alerts(previous, current) if "alert." in m]
 
 
 # ---------- after each draw ----------

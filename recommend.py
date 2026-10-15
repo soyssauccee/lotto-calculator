@@ -62,8 +62,6 @@ def main(argv=None):
     parser.add_argument("--all-prizes", action="store_true", help="include the lower prize categories")
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR, help="folder with next.json")
     args = parser.parse_args(argv)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
 
     upcoming = store.load_json(args.data_dir / "next.json", default={})
     for game in model.GAMES:
@@ -73,7 +71,7 @@ def main(argv=None):
     if not verdict:
         print("\nNo recommendation: one of the games has no value yet.")
         return 1
-    if not recommendation.get("play", True):
+    if not recommendation["play"]:
         top = recommendation["top_prizes"]
         print(
             f"\nSkip for now: neither game reaches ${recommendation['min_per_dollar']:.2f} back per $1 in big prizes. "
@@ -86,8 +84,7 @@ def main(argv=None):
         f"back per $1 in {basis}, ${verdict['margin']:.3f} better"
         + (". Close call: within the sales forecasts' ranges the other game could come out ahead." if verdict["close_call"] else ".")
     )
-    if upcoming.get("lotto649", {}).get("forecast", {}).get("assumes_no_super_draw"):
-        print("6/49 assumes a normal draw; a Super Draw would add value and sales.")
+    print("6/49 assumes a normal draw; a Super Draw would add value and sales.")
     return 0
 
 

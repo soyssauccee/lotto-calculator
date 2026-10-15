@@ -141,11 +141,9 @@ button { -webkit-tap-highlight-color: transparent; }
 /* The game cards side by side, and the charts side by side under them */
 .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
 .pair > .card { margin-bottom: 0; }
-.verdict, .segmented { max-width: 640px; }
-.verdict { margin-left: auto; margin-right: auto; }
 
 /* Recommendation */
-.verdict { padding: 22px 20px 20px; }
+.verdict { max-width: 640px; margin-inline: auto; padding: 22px 20px 20px; }
 .verdict-title { font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -0.035em; margin: 8px 0 6px; }
 .verdict-sub { font-size: 14px; color: var(--text-2); line-height: 1.45; }
 .verdict-foot { margin-top: 12px; font-size: 14px; color: var(--text-2); line-height: 1.5; }
@@ -248,7 +246,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .chart .max.lo { stroke: var(--max-lo); fill: var(--max-lo); }
 .chart .g649.hi { stroke: var(--g649-hi); fill: var(--g649-hi); }
 .chart .g649.lo { stroke: var(--g649-lo); fill: var(--g649-lo); }
-.chart polyline.line,
 .chart .line.hi,
 .chart .line.lo { fill: none; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; } /* after the shade rules' fill */
 

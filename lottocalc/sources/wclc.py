@@ -7,6 +7,7 @@ prize breakdown of any draw sits at a stable URL keyed by its sequential number.
 import re
 from collections import Counter
 from datetime import datetime
+from functools import lru_cache
 
 from bs4 import BeautifulSoup
 
@@ -27,7 +28,7 @@ _DETAILS_HEADINGS = {model.LOTTO_649: "LOTTO 6/49", model.LOTTO_MAX: "LOTTO MAX"
 
 def parse_next(html):
     """Next-draw info for both games from the sidebar of either listing page."""
-    soup = BeautifulSoup(html, "html.parser")
+    soup = _soup(html)
     gold = soup.select_one(".nextJackpotDetailsL649gold")
     lmax = soup.select_one(".nextJackpotDetailsLmax")
     if gold is None or lmax is None:
@@ -60,13 +61,10 @@ def parse_next(html):
 
 def parse_draw_list(html):
     """[{'draw_number', 'draw_date'}] for the draws shown on a listing page, newest first."""
-    soup = BeautifulSoup(html, "html.parser")
     draws = []
-    for block in soup.select("div.pastWinNum"):
-        link = block.select_one(".pastWinNumPrizeBreakdown")
-        rel = link.get("rel") if link else None
-        rel = " ".join(rel) if isinstance(rel, list) else rel or ""
-        number = re.search(r"drawNumber=(\d+)", rel)
+    for block in _soup(html).select("div.pastWinNum"):
+        # the number in the prize-breakdown link, whichever attribute holds it (no link: no match)
+        number = re.search(r"drawNumber=(\d+)", str(block.select_one(".pastWinNumPrizeBreakdown")))
         if not number:
             raise ParseError("draw without a prize-breakdown link")
         draws.append({"draw_number": int(number[1]), "draw_date": _date(block.select_one(".pastWinNumDate"))})
@@ -120,6 +118,11 @@ def parse_prize_details(html, game, draw_number):
         )
     record.update(tier_winners=winners, tier_prizes=prizes)
     return record
+
+
+@lru_cache(maxsize=1)  # a listing page is read twice in a row: for its draws, then for the next-draw sidebar
+def _soup(html):
+    return BeautifulSoup(html, "html.parser")
 
 
 def _date(element):
