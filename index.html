@@ -64,6 +64,18 @@
     </section>
     </div>
 
+    <section id="sim" class="card sim max">
+      <h2>Try a draw</h2>
+      <p class="caption">Buy a ticket for the next draw, from one play up to $30, and watch it drawn the way ILC does it, with a random number generator: each number is equally likely and can't be predicted. Prizes, MAXPLUS and Gold Ball balls are the real upcoming draw's.</p>
+      <div class="segmented" role="group" aria-label="Game to simulate">
+        <button type="button" data-game="lottomax" aria-pressed="true">Lotto Max</button>
+        <button type="button" data-game="lotto649" aria-pressed="false">Lotto 6/49</button>
+      </div>
+      <div id="sim-ticket"></div>
+      <div id="sim-result" aria-live="polite"></div>
+      <p id="sim-tally" class="sim-tally"></p>
+    </section>
+
     <footer class="footer">
       <p>Values are expected winnings per $1 spent. Under $1 means a ticket pays back less than it costs, on average.</p>
       <p>Prize breakdowns from <a href="https://www.wclc.com">WCLC</a>. Sales are worked out from the published prizes, and the next draw's sales are forecast. Not affiliated with OLG.</p>

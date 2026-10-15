@@ -480,6 +480,239 @@ function readoutText(p, chart) {
   return `${name}, ${pastDayText(d.draw_date)}: ${money(d.gold_ball_amount)} Gold Ball with ${d.balls_remaining} balls${ball}${extra}, ${plays}. Worth ${worth}.`;
 }
 
+// ---------- draw simulator ----------
+
+// One ticket against the upcoming draw, drawn as ILC's game conditions describe: Lotto Max's
+// main draw, then one MAXPLUS series per $1M of jackpot, then the MAXMILLIONS series; 6/49's
+// Classic draw, then one Gold Ball number from all those sold, then one prize ball. ILC has
+// drawn with a random number generator since May 2019; this uses the device's cryptographic
+// one (never Math.random), each number drawn from those left, all equally likely.
+const SIM = {
+  lottomax: { price: 6, lines: 4, pick: 7, highest: 52, minHits: 3, plus: [3, 4, 5, 6], fixed: { "4/7": 20, "3/7+B": 20 }, top: "7/7", free: "3/7" },
+  lotto649: { price: 3, lines: 1, pick: 6, highest: 49, minHits: 2, plus: [2, 5], fixed: { "3/6": 10, "2/6+B": 5 }, top: "6/6", free: "2/6" },
+};
+const SIM_KEY = "lotto-calculator.sim";
+
+// A whole number from 0 to n - 1, each equally likely: values from the top of the 32-bit
+// range, which would favour the small numbers, are thrown away and drawn again.
+function randomInt(n) {
+  const limit = 2 ** 32 - (2 ** 32 % n);
+  const value = new Uint32Array(1);
+  do crypto.getRandomValues(value);
+  while (value[0] >= limit);
+  return value[0] % n;
+}
+
+// `count` different numbers from 1 to `highest`, in the order drawn.
+function drawNumbers(count, highest) {
+  const left = Array.from({ length: highest }, (_, i) => i + 1);
+  return Array.from({ length: count }, () => left.splice(randomInt(left.length), 1)[0]);
+}
+
+const sorted = (numbers) => [...numbers].sort((a, b) => a - b);
+const quickPick = (g) => sorted(drawNumbers(g.pick, g.highest));
+const goldNumber = () => `${String(randomInt(1e8)).padStart(8, "0")}-${String(randomInt(100)).padStart(2, "0")}`;
+const cash = (n) => (n >= 1e4 ? money(n) : "$" + (Number.isInteger(n) ? n.toLocaleString("en-CA") : n.toFixed(2)));
+
+const sim = { game: "lottomax", picking: false, plays: { lottomax: 1, lotto649: 1 }, picks: { lottomax: quickPick(SIM.lottomax), lotto649: quickPick(SIM.lotto649) } };
+try {
+  sim.tally = JSON.parse(localStorage.getItem(SIM_KEY)) || {};
+} catch {
+  sim.tally = {};
+}
+
+function prize(game, key, info) {
+  const g = SIM[game];
+  const label = key.replace("+B", " + bonus");
+  if (key === g.top) return { label, amount: game === "lottomax" ? info.jackpot : 5e6, note: "win or share" };
+  if (key === g.free) return { label, amount: g.price, free: true };
+  if (g.fixed[key]) return { label, amount: g.fixed[key] };
+  // a shared pool: what the last real draw paid in it
+  return { label, amount: state.draws.filter((d) => d.game === game && d.tier_prizes[key] != null).at(-1).tier_prizes[key], note: "as the last draw paid" };
+}
+
+function playTicket(game) {
+  const g = SIM[game];
+  const info = state.next[game];
+  const plays = sim.plays[game];
+  // your numbers are the first line; every other line on the ticket is a Quick Pick
+  const lines = [sim.picks[game], ...Array.from({ length: g.lines * plays - 1 }, () => quickPick(g))];
+  const drawn = drawNumbers(g.pick + 1, g.highest); // the main numbers, then the bonus
+  const r = { game, plays, lines, drawn, main: drawn.slice(0, g.pick), bonus: drawn[g.pick] };
+  r.lineWins = lines.map((line) => {
+    const hits = line.filter((n) => r.main.includes(n)).length;
+    return hits < g.minHits ? null : prize(game, `${hits}/${g.pick}${g.plus.includes(hits) && line.includes(r.bonus) ? "+B" : ""}`, info);
+  });
+  r.wins = r.lineWins.filter(Boolean);
+  if (game === "lottomax") {
+    const mine = new Set(lines.map((line) => line.join()));
+    const series = (count, amount, label) =>
+      Array.from({ length: count }, () => {
+        const set = quickPick(g);
+        if (mine.has(set.join())) r.wins.push({ label, amount, note: "win or share" });
+        return set;
+      });
+    r.maxplus = series(info.maxplus_count, info.maxplus_prize, "MAXPLUS");
+    r.maxmillions = series(info.maxmillions_count, 1e6, "MAXMILLIONS");
+  } else {
+    // the numbers sold, which only the forecast knows before the draw
+    r.issued = info.forecast?.plays ?? state.draws.filter((d) => d.game === game).at(-1).est_plays;
+    r.yours = Array.from({ length: plays }, goldNumber); // one per play
+    const pick = randomInt(r.issued); // yours are `plays` of the numbers sold
+    r.winning = r.yours[pick] ?? goldNumber();
+    r.balls = info.balls_remaining;
+    r.gold = randomInt(r.balls) === 0;
+    if (pick < plays) r.wins.push(r.gold ? { label: "Gold Ball jackpot", amount: info.gold_ball_amount } : { label: "Gold Ball draw", amount: 1e6 });
+  }
+  return r;
+}
+
+const ballHtml = (n, cls = "") => `<span class="ball ${cls}">${n}</span>`;
+const prizeAmount = (w) => (w.free ? "Free Play" : cash(w.amount));
+
+// "2 × 3/7: Free Play; 4/7: $20", with the total when there's more than one prize
+function prizesText(wins) {
+  const counts = new Map();
+  for (const w of wins) {
+    const text = `${w.label}: ${prizeAmount(w)}${w.note ? ` (${w.note})` : ""}`;
+    counts.set(text, (counts.get(text) ?? 0) + 1);
+  }
+  const list = [...counts].map(([text, n]) => (n > 1 ? `${n} × ${text}` : text)).join("; ");
+  return wins.length > 1 ? `${list}. ${cash(wins.reduce((sum, w) => sum + w.amount, 0))} in all` : list;
+}
+
+function simTicketHtml() {
+  const g = SIM[sim.game];
+  const line = sim.picks[sim.game];
+  const plays = sim.plays[sim.game];
+  if (sim.picking) {
+    const grid = Array.from({ length: g.highest }, (_, i) => `<button type="button" data-num="${i + 1}" aria-pressed="${line.includes(i + 1)}">${i + 1}</button>`);
+    return `
+      <p class="kicker">Pick ${g.pick} numbers · ${line.length} of ${g.pick}</p>
+      <div class="sim-grid">${grid.join("")}</div>
+      <div class="sim-actions"><button type="button" data-act="quick">Quick Pick instead</button></div>`;
+  }
+  const others = g.lines * plays - 1;
+  const quick = others ? `${others} Quick Pick line${others > 1 ? "s" : ""}` : "";
+  const gold = sim.game === "lotto649" ? (plays > 1 ? `${plays} Gold Ball numbers, one per play` : "a Gold Ball number") : "";
+  const extra = `Your numbers, plus ${[quick, gold].filter(Boolean).join(" and ")}, new with each ticket.`;
+  return `
+    <p class="kicker">Your ticket</p>
+    <div class="sim-size">
+      <button type="button" data-act="fewer" aria-label="One play fewer"${plays === 1 ? " disabled" : ""}>−</button>
+      <span>${plays} play${plays > 1 ? "s" : ""} · $${g.price * plays}</span>
+      <button type="button" data-act="more" aria-label="One play more"${plays === MAX_TICKET_PLAYS[sim.game] ? " disabled" : ""}>+</button>
+    </div>
+    <div class="balls">${line.map((n) => ballHtml(n)).join("")}</div>
+    <p class="caption">${extra}</p>
+    <div class="sim-actions">
+      <button type="button" data-act="draw" class="primary">Draw</button>
+      <button type="button" data-act="pick">Pick numbers</button>
+      <button type="button" data-act="quick">Quick Pick</button>
+      <button type="button" data-act="draw100">Play 100 draws</button>
+    </div>`;
+}
+
+function simResultHtml(r) {
+  const g = SIM[r.game];
+  const drawn = r.drawn.map((n, i) => `<span class="ball drawn${i === g.pick ? " bonus" : ""}" style="--i:${i}">${n}</span>`).join("");
+  const mark = (n) => ballHtml(n, r.main.includes(n) ? "hit" : n === r.bonus ? "bonus" : "");
+  const lines = r.lines.map((line, i) => {
+    const play = r.game === "lottomax" && r.plays > 1 && i % g.lines === 0 ? `<p class="sim-play">Play ${i / g.lines + 1}</p>` : "";
+    const won = r.lineWins[i];
+    return `${play}<div class="sim-line"><span class="balls small">${line.map(mark).join("")}</span>${won ? `<b>${won.label} · ${prizeAmount(won)}</b>` : ""}</div>`;
+  });
+  const series = (label, sets, each) => {
+    const hit = r.wins.some((w) => w.label === label);
+    return `<details><summary>${label}: ${sets.length} sets of 7 drawn, ${money(each)} each for an exact match: ${hit ? "you matched one!" : "no match"}</summary>
+      <div class="sim-sets">${sets.map((s) => `<span>${s.join(" ")}</span>`).join("")}</div></details>`;
+  };
+  const extras = r.game === "lottomax"
+    ? series("MAXPLUS", r.maxplus, state.next.lottomax.maxplus_prize) + series("MAXMILLIONS", r.maxmillions, 1e6)
+    : `<p class="sim-numbers">Gold Ball draw: ${r.winning} drawn from about ${r.issued.toLocaleString("en-CA")} numbers sold; yours ${r.plays > 1 ? "were" : "was"} ${r.yours.join(", ")}.</p>
+       <p class="sim-numbers">Prize ball: ${r.gold ? `the gold ball, worth the ${money(state.next.lotto649.gold_ball_amount)} jackpot` : "a $1M ball"}, drawn from ${r.balls}.</p>`;
+  const won = r.wins.length ? `You won ${prizesText(r.wins)}.` : "No prize this time.";
+  return `
+    <div class="sim-draw" data-act="skip">
+      <p class="kicker">${r.game === "lottomax" ? "Main draw" : "Classic draw"} · tap to show all</p>
+      <div class="balls">${drawn}</div>
+      <div class="sim-after" style="--i:${r.drawn.length}">
+        <p class="sim-numbers">Winning numbers ${sorted(r.main).join(", ")}, bonus ${r.bonus}</p>
+        <p class="kicker">Your lines</p>
+        <div class="sim-lines">${lines.join("")}</div>
+        ${extras}
+        <p class="sim-won">${won}</p>
+      </div>
+    </div>`;
+}
+
+function simSummaryHtml(results) {
+  const wins = results.flatMap((r) => r.wins);
+  const won = wins.reduce((sum, w) => sum + w.amount, 0);
+  const ticket = SIM[sim.game].price * sim.plays[sim.game];
+  const spent = results.length * ticket;
+  return `
+    <p class="kicker">${results.length} draws · a $${ticket} ticket each</p>
+    <p class="sim-won">${cash(spent)} spent, ${cash(won)} won back: ${perDollar(won / spent)} per $1.</p>
+    <p class="caption">Prizes: ${wins.length ? prizesText(wins) : "none"}. A Free Play counts as one play's price.</p>`;
+}
+
+function renderSim() {
+  const t = sim.tally[sim.game];
+  document.getElementById("sim").className = `card sim ${GAMES[sim.game].css}`;
+  for (const button of document.querySelectorAll("#sim [data-game]")) button.setAttribute("aria-pressed", String(button.dataset.game === sim.game));
+  document.getElementById("sim-ticket").innerHTML = simTicketHtml();
+  document.getElementById("sim-tally").innerHTML = t
+    ? `${t.tickets.toLocaleString("en-CA")} ticket${t.tickets === 1 ? "" : "s"} · ${cash(t.spent)} spent · ${cash(t.won)} won · net ${t.won < t.spent ? "−" : "+"}${cash(Math.abs(t.won - t.spent))} <button type="button" data-act="reset">Reset</button>`
+    : "";
+}
+
+function saveTally() {
+  try {
+    localStorage.setItem(SIM_KEY, JSON.stringify(sim.tally));
+  } catch {
+    // private browsing: the tally just isn't remembered
+  }
+}
+
+document.getElementById("sim").addEventListener("click", (event) => {
+  const el = event.target.closest("[data-game], [data-num], [data-act]");
+  if (!el) return;
+  const g = SIM[sim.game];
+  const result = document.getElementById("sim-result");
+  const act = el.dataset.act;
+  if (act === "skip") return el.classList.add("skip");
+  if (el.dataset.game) {
+    Object.assign(sim, { game: el.dataset.game, picking: false });
+    result.innerHTML = "";
+  } else if (el.dataset.num) {
+    const n = Number(el.dataset.num);
+    const line = sim.picks[sim.game];
+    sim.picks[sim.game] = line.includes(n) ? line.filter((x) => x !== n) : sorted([...line, n]);
+    sim.picking = sim.picks[sim.game].length < g.pick;
+  } else if (act === "fewer" || act === "more") {
+    sim.plays[sim.game] += act === "more" ? 1 : -1; // the buttons are disabled at 1 play and at $30
+  } else if (act === "pick" || act === "quick") {
+    sim.picks[sim.game] = act === "pick" ? [] : quickPick(g);
+    sim.picking = act === "pick";
+  } else if (act === "reset") {
+    delete sim.tally[sim.game];
+    saveTally();
+  } else if (!state.next?.[sim.game]) {
+    result.innerHTML = `<p class="caption">The next draw hasn't loaded yet. Try again in a moment.</p>`;
+  } else {
+    const results = Array.from({ length: act === "draw" ? 1 : 100 }, () => playTicket(sim.game));
+    const t = (sim.tally[sim.game] ??= { tickets: 0, spent: 0, won: 0 });
+    t.tickets += results.length;
+    t.spent += results.length * g.price * sim.plays[sim.game];
+    t.won += results.flatMap((r) => r.wins).reduce((sum, w) => sum + w.amount, 0);
+    saveTally();
+    result.innerHTML = act === "draw" ? simResultHtml(results[0]) : simSummaryHtml(results);
+  }
+  renderSim();
+});
+renderSim();
+
 // ---------- loading and events ----------
 
 // The pill in the top corner: green when fresh, amber when stale, red after an error.
