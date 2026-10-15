@@ -128,12 +128,12 @@ def _catch_up(session, game, listing, draws, now, stamp, report, first_run_draws
     name = model.GAME_NAMES[game]
     listed = {item["draw_number"]: item["draw_date"] for item in listing}
     have = {d["draw_number"] for d in draws if d["game"] == game}
-    latest = max(item["draw_number"] for item in listing)
+    latest = max(listed)
     if backfill or have:
         start = model.FORMAT_FIRST_DRAW[game] if backfill else min(have)
         wanted = [n for n in range(start, latest + 1) if n not in have]
     else:
-        wanted = sorted(item["draw_number"] for item in listing)[-first_run_draws:]
+        wanted = sorted(listed)[-first_run_draws:]
     if len(wanted) > MAX_CATCH_UP and not backfill:
         report.warnings.append(
             f"{name}: {len(wanted)} draws missing; fetching the newest {MAX_CATCH_UP}, backfill the rest"

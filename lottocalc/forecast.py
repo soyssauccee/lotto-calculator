@@ -180,13 +180,12 @@ def forecast_next(game, draws, upcoming):
     upcoming_is_special = SPECIAL[game](upcoming)
     log_plays = _log_forecast(game, X, y, _design(game, [upcoming])[0])
     low, high = _error_range(predictions, upcoming_is_special)
-    stats = accuracy(predictions)
     return {
         "plays": int(round(np.exp(log_plays))),
         "low": int(round(np.exp(log_plays + low))),
         "high": int(round(np.exp(log_plays + high))),
         "special": upcoming_is_special,
         "assumes_no_super_draw": game == model.LOTTO_649,
-        "backtest_mape": round(stats["mape"], 4),
-        "backtest_draws": stats["draws"],
+        "backtest_mape": round(float(np.mean(np.abs(np.expm1([p.error for p in predictions])))), 4),
+        "backtest_draws": len(predictions),
     }
