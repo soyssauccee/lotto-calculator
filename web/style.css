@@ -298,7 +298,7 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 /* Draw simulator: balls in the game's colour, revealed one by one like the TV draw */
-.sim { max-width: 640px; margin-inline: auto; --accent: var(--max); }
+.sim { max-width: 640px; margin-inline: auto; color: var(--text); --accent: var(--max); } /* text colour over the game class's */
 .sim.g649 { --accent: var(--g649); }
 .sim h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
 .sim > .caption { margin-top: 4px; }
@@ -312,14 +312,16 @@ button { -webkit-tap-highlight-color: transparent; }
 .ball.drawn, .ball.hit { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .ball.bonus { background: transparent; border: 2px solid var(--accent); color: var(--text); }
 .sim-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.sim-size { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
-.sim-size span { min-width: 104px; text-align: center; }
+.sim-size { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 14px; }
+.sim-size span { width: 112px; color: var(--text-2); }
+.sim-size b { min-width: 16px; text-align: center; font-weight: 600; }
+.sim-set { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .sim-lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 6px 16px; }
 .sim-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .sim-line b { font-size: 12px; font-weight: 600; }
 .sim-lines .balls.small { margin-top: 0; }
 .sim-play { grid-column: 1 / -1; margin-top: 6px; font-size: 12px; color: var(--text-3); }
-.sim-actions button, .sim-tally button, .sim-grid button, .sim-size button {
+.sim-actions button, .sim-tally button, .sim-grid button, .sim-size button, .sim-set button {
   font: 500 13px/1.4 var(--font);
   color: var(--text);
   background: var(--inset);
@@ -332,7 +334,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .sim-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; max-width: 360px; }
 .sim-grid button { padding: 0; aspect-ratio: 1; border-radius: 50%; }
 .sim-size button { width: 34px; height: 34px; padding: 0; font-size: 18px; }
-.sim-size button:disabled { opacity: 0.35; cursor: default; }
+.sim button:disabled { opacity: 0.35; cursor: default; }
 .sim-grid button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
 .sim-draw .drawn { animation: pop 0.35s both; animation-delay: calc(var(--i) * 0.7s); }
 .sim-after { animation: fade 0.4s both; animation-delay: calc(var(--i) * 0.7s); }
@@ -344,7 +346,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .sim-won { margin-top: 14px; font-size: 15px; font-weight: 600; }
 .sim-tally { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 16px; font-size: 13px; color: var(--text-2); }
 .sim-tally:empty { display: none; }
-.sim-tally button { padding: 3px 10px; font-size: 12px; }
+.sim-tally button, .sim-set button { padding: 3px 10px; font-size: 12px; }
 @keyframes pop { from { opacity: 0; transform: scale(0.4); } }
 @keyframes fade { from { opacity: 0; } }
 @media (max-width: 640px) {

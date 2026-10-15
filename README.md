@@ -175,7 +175,8 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
   brighter above the minimum and softer below it (tap a point for details). The Big prizes /
   All prizes toggle switches the recommendation's bars between the two minimums
 - when the data was last updated, with warnings for failed or stale updates
-- "Try a draw": buy a ticket of 1 play up to $30 (your numbers or Quick Pick) and watch it drawn
+- "Try a draw": buy a ticket of 1 play up to $30, any mix of your own sets of numbers and Quick
+  Picks (each Lotto Max play also gets 3 Quick Pick lines, as on a real ticket), and watch it drawn
   as the game conditions describe, with the upcoming draw's jackpot, MAXPLUS/MAXMILLIONS counts
   and Gold Ball balls. Lotto Max: the main draw (7 numbers + bonus from 1–52), then one MAXPLUS
   series per $1M of jackpot, then the MAXMILLIONS series. 6/49: the Classic draw (6 + bonus from
