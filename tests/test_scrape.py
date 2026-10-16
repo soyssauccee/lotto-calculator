@@ -182,6 +182,22 @@ def test_total_outage_keeps_the_previous_next_draw_marked_stale():
     assert report.errors
 
 
+def test_a_source_that_is_behind_doesnt_replace_a_newer_next_draw():
+    # In a WCLC outage the backup once listed draws from the week before: older than what's known, so kept out
+    draws = [stored(model.LOTTO_649, 4452), stored(model.LOTTO_MAX, 1272)]
+    previous = {
+        model.LOTTO_649: {"draw_number": 4454, "draw_date": "2026-09-26", "source": "wclc", "as_of": "2026-09-23T12:00:00Z"},
+        model.LOTTO_MAX: {"draw_number": 1273, "draw_date": "2026-09-25", "source": "wclc", "as_of": "2026-09-23T12:00:00Z"},
+    }
+    next_doc, report = scrape.update(FakeSession(BACKUP), draws, previous, NOW)  # the backup lists 09-23 and 09-25
+
+    assert next_doc[model.LOTTO_649] == dict(previous[model.LOTTO_649], stale=True)
+    assert ("Lotto 6/49: Lottery Canada lists the 2026-09-23 draw, older than the 2026-09-26 one already known; "
+            "kept the last good data") in report.errors
+    assert next_doc[model.LOTTO_MAX]["source"] == "lotterycanada"  # the same draw as the one known is used
+    assert [w for w in report.warnings if "backup" in w] == ["Lotto Max: next draw taken from the backup source, Lottery Canada"]
+
+
 def test_unreadable_draw_is_reported_and_not_stored():
     pages = LISTINGS | {wclc.DETAILS_URLS[model.LOTTO_649].format(4452): "wclc_max_1272.html"}
     draws = [stored(model.LOTTO_649, 4451), stored(model.LOTTO_MAX, 1272)]

@@ -28,6 +28,7 @@ BACKFILL_DELAY = 2.0  # seconds between requests during a backfill
 # WCLC lists a draw about 1¼ hours after it but posts the prizes about 2 hours after. Until
 # this long after the draw, a listed draw without its prizes is waited for, not an error.
 POSTING_GRACE = timedelta(hours=12)
+SOURCE_NAMES = {"wclc": "WCLC", "lotterycanada": "Lottery Canada"}
 
 
 @dataclass
@@ -75,7 +76,6 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
             report.errors.append(f"{name}: next draw unavailable from WCLC and Lottery Canada ({_problem(exc)})")
             continue
         upcoming[game] = dict(info, source="lotterycanada")
-        report.warnings.append(f"{name}: next draw taken from the backup source, Lottery Canada")
     if sidebar_problem:
         report.warnings.append(sidebar_problem)
 
@@ -89,13 +89,22 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         report.warnings += model.check_history(game, records)
         report.warnings += sales.annotate(records)
         info = upcoming.get(game)
+        previous = (previous_next or {}).get(game)
+        if info is not None and previous and info["draw_date"] < previous["draw_date"]:
+            # The source is behind (an outage, an old cached page), so it mustn't replace newer data.
+            report.errors.append(
+                f"{model.GAME_NAMES[game]}: {SOURCE_NAMES[info['source']]} lists the {info['draw_date']} draw, "
+                f"older than the {previous['draw_date']} one already known; kept the last good data"
+            )
+            info = None
+        elif info is not None and info["source"] == "lotterycanada":
+            report.warnings.append(f"{model.GAME_NAMES[game]}: next draw taken from the backup source, Lottery Canada")
         if info is not None:
             info = {"draw_number": _next_draw_number(game, info, records, report), **info}
         if game == model.LOTTO_649:
             report.warnings += model.derive_gold_ball(records, info)
         value.annotate(records)  # needs est_plays and the Gold Ball state
         if info is None:
-            previous = (previous_next or {}).get(game)
             next_doc[game] = dict(previous, stale=True) if previous else None
             continue
         if date.fromisoformat(info["draw_date"]) < today:
