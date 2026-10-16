@@ -115,6 +115,10 @@ def update(session, draws, previous_next, now, first_run_draws=FIRST_RUN_DRAWS, 
         errors, warnings = model.check_next(game, info)
         report.errors += errors
         report.warnings += warnings
+        if errors and previous and previous.get("value") and previous["draw_date"] == info["draw_date"]:
+            # The same draw as before, but unusable this time (a missing jackpot): keep the good copy.
+            next_doc[game] = dict(previous, stale=True)
+            continue
         if info["draw_number"] and not errors:
             try:
                 info["forecast"] = forecast.forecast_next(game, records, info)

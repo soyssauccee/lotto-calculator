@@ -198,6 +198,19 @@ def test_a_source_that_is_behind_doesnt_replace_a_newer_next_draw():
     assert [w for w in report.warnings if "backup" in w] == ["Lotto Max: next draw taken from the backup source, Lottery Canada"]
 
 
+def test_a_source_with_a_broken_amount_doesnt_replace_a_good_next_draw(monkeypatch):
+    # The backup once showed a $0 Gold Ball: for the draw already known, the good copy stays
+    good, _ = scrape.update(FakeSession(LISTINGS), store.load_draws(FIXTURES / "draws_history.json"), None, NOW)
+    real = lotterycanada.parse_next
+    monkeypatch.setattr(lotterycanada, "parse_next", lambda html, game: dict(
+        real(html, game), **({"gold_ball_amount": 0} if game == model.LOTTO_649 else {})))
+    next_doc, report = scrape.update(FakeSession(BACKUP), store.load_draws(FIXTURES / "draws_history.json"), good, NOW)
+
+    assert next_doc[model.LOTTO_649] == dict(good[model.LOTTO_649], stale=True)
+    assert "Lotto 6/49: next Gold Ball jackpot missing" in report.errors
+    assert next_doc["recommendation"]["top_prizes"]["game"] == model.LOTTO_MAX  # the page keeps its recommendation
+
+
 def test_unreadable_draw_is_reported_and_not_stored():
     pages = LISTINGS | {wclc.DETAILS_URLS[model.LOTTO_649].format(4452): "wclc_max_1272.html"}
     draws = [stored(model.LOTTO_649, 4451), stored(model.LOTTO_MAX, 1272)]

@@ -239,7 +239,7 @@ local changes.
 | Source | Used for | Notes |
 |---|---|---|
 | [WCLC](https://www.wclc.com) | everything | Server-rendered HTML with national results. Draw breakdowns are keyed by sequential draw number. |
-| [Lottery Canada](https://www.lotterycanada.com) | next-draw info, only if WCLC fails | Prizes rounded to whole dollars, so never used for history. During a WCLC outage on Oct 16, 2026 it listed the previous week's draws, so a source listing an older draw than the one already known is ignored and the last good data kept. |
+| [Lottery Canada](https://www.lotterycanada.com) | next-draw info, only if WCLC fails | Prizes rounded to whole dollars, so never used for history. During a WCLC outage on Oct 16, 2026 it listed the previous week's draws with a $0 Gold Ball, so a source listing an older draw than the one already known, or the same draw with an amount missing, is ignored and the last good data kept. |
 
 OLG's own site loads its data from a private keyed API, and BCLC/ALC render client-side, so
 none of them is scraped.
