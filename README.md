@@ -174,7 +174,8 @@ Rule of thumb from the stored draws (median value per $1 in big prizes):
   so both lines span the chart, up to the last 12 months; one for big prizes (with the $0.40 minimum)
   and one for the whole ticket with every prize (with a $0.55 guide line); each game's line is
   brighter above the minimum and softer below it (tap a point for details). The Big prizes /
-  All prizes toggle switches the recommendation's bars between the two minimums
+  All prizes toggle switches the recommendation's bars between the two minimums, on a skip too
+  (the pick itself always goes by big prizes)
 - when the data was last updated, with warnings for failed or stale updates
 - "Try a draw": buy a ticket of 1 play up to $30, any mix of your own sets of numbers and Quick
   Picks (each Lotto Max play also gets 3 Quick Pick lines, as on a real ticket), and watch it drawn

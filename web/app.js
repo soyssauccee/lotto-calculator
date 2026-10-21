@@ -151,16 +151,31 @@ function shortBy(gap) {
   return gap < 0.005 ? "just short" : `${perDollar(gap)} short`;
 }
 
-function skipHtml(next) {
-  const top = next.recommendation.top_prizes; // the minimum is judged on big prizes
-  const best = top.game;
+// The pick goes by big prizes; the All prizes view shows where the games stand against the
+// whole-ticket minimum.
+function skipHtml(next, basis) {
+  const top = next.recommendation.top_prizes;
   const minimum = minimumToPlay(next);
-  return `
-    <p class="kicker">Recommendation</p>
-    <h1 class="verdict-title">Skip for now</h1>
+  const title = `<p class="kicker">Recommendation</p><h1 class="verdict-title">Skip for now</h1>`;
+  if (basis === "top_prizes") {
+    return `${title}
     <p class="verdict-sub">Neither game reaches the ${perDollar(minimum)} minimum back per $1 in big prizes.</p>
-    ${barsHtml(best, top.per_dollar, top.runner_up_per_dollar, minimum, false)}
-    <p class="verdict-foot">The closer one, ${GAMES[best].name}, is <strong>${shortBy(minimum - top.per_dollar)}</strong>.</p>`;
+    ${barsHtml(top.game, top.per_dollar, top.runner_up_per_dollar, minimum, false)}
+    <p class="verdict-foot">The closer one, ${GAMES[top.game].name}, is <strong>${shortBy(minimum - top.per_dollar)}</strong>.</p>`;
+  }
+  const all = next.recommendation.all_prizes;
+  const name = GAMES[all.game].name;
+  const bars = barsHtml(all.game, all.per_dollar, all.runner_up_per_dollar, WHOLE_TICKET_MINIMUM, false);
+  if (all.per_dollar < WHOLE_TICKET_MINIMUM) {
+    return `${title}
+    <p class="verdict-sub">Counting all prizes, neither game reaches the ${perDollar(WHOLE_TICKET_MINIMUM)} minimum back per $1.</p>
+    ${bars}
+    <p class="verdict-foot">The closer one, ${name}, is <strong>${shortBy(WHOLE_TICKET_MINIMUM - all.per_dollar)}</strong>.</p>`;
+  }
+  return `${title}
+    <p class="verdict-sub">Counting all prizes, ${name} reaches the ${perDollar(WHOLE_TICKET_MINIMUM)} minimum back per $1, but the pick goes by big prizes.</p>
+    ${bars}
+    <p class="verdict-foot">In big prizes the closer one, ${GAMES[top.game].name}, is <strong>${shortBy(minimum - top.per_dollar)}</strong> of the ${perDollar(minimum)} minimum.</p>`;
 }
 
 function verdictHtml(next, basis) {
@@ -173,7 +188,7 @@ function verdictHtml(next, basis) {
       : "Not enough data to compare the games yet.";
     return `<p class="kicker">Recommendation</p><p class="verdict-sub">${message}</p>`;
   }
-  if (!next.recommendation.play) return skipHtml(next);
+  if (!next.recommendation.play) return skipHtml(next, basis);
   const best = rec.game;
   const other = otherGame(best);
   const counted = basis === "all_prizes" ? "all prizes" : "big prizes";
