@@ -1,12 +1,12 @@
 {
-  "scraped_at": "2026-10-30T02:57:12Z",
+  "scraped_at": "2026-10-30T17:01:56Z",
   "lotto649": {
     "draw_number": 4464,
     "draw_date": "2026-10-31",
     "jackpot": 5000000,
     "gold_ball_amount": 32000000,
     "balls_remaining": 19,
-    "source": "wclc",
+    "source": "lotterycanada",
     "forecast": {
       "plays": 4525309,
       "low": 4354006,
@@ -40,7 +40,7 @@
       },
       "price": 3
     },
-    "as_of": "2026-10-30T02:57:12Z"
+    "as_of": "2026-10-30T17:01:56Z"
   },
   "lottomax": {
     "draw_number": 1283,
@@ -49,7 +49,7 @@
     "maxmillions_count": 0,
     "maxplus_count": 30,
     "maxplus_prize": 100000,
-    "source": "wclc",
+    "source": "lotterycanada",
     "forecast": {
       "plays": 4891917,
       "low": 4546361,
@@ -82,7 +82,7 @@
       },
       "price": 6
     },
-    "as_of": "2026-10-30T02:57:12Z"
+    "as_of": "2026-10-30T17:01:56Z"
   },
   "recommendation": {
     "play": false,
@@ -102,6 +102,12 @@
       "close_call": false
     }
   },
-  "errors": [],
-  "warnings": []
+  "errors": [
+    "Lotto 6/49: WCLC results page unavailable, no new draws (https://www.wclc.com/winning-numbers/lotto-649-extra.htm: HTTP 503)",
+    "Lotto Max: WCLC results page unavailable, no new draws (https://www.wclc.com/winning-numbers/lotto-max-extra.htm: HTTP 503)"
+  ],
+  "warnings": [
+    "Lotto 6/49: next draw taken from the backup source, Lottery Canada",
+    "Lotto Max: next draw taken from the backup source, Lottery Canada"
+  ]
 }
