@@ -1,46 +1,46 @@
 {
-  "scraped_at": "2026-11-01T00:07:05Z",
+  "scraped_at": "2026-11-01T08:38:57Z",
   "lotto649": {
-    "draw_number": 4464,
-    "draw_date": "2026-10-31",
+    "draw_number": 4465,
+    "draw_date": "2026-11-04",
     "jackpot": 5000000,
-    "gold_ball_amount": 32000000,
-    "balls_remaining": 19,
+    "gold_ball_amount": 34000000,
+    "balls_remaining": 18,
     "source": "wclc",
     "forecast": {
-      "plays": 4525309,
-      "low": 4354006,
-      "high": 4687197,
+      "plays": 4275437,
+      "low": 4113593,
+      "high": 4428386,
       "special": false,
       "assumes_no_super_draw": true,
       "backtest_mape": 0.0279,
-      "backtest_draws": 331
+      "backtest_draws": 332
     },
     "value": {
-      "per_dollar": 0.2957,
+      "per_dollar": 0.3236,
       "per_dollar_range": [
-        0.2884,
-        0.3039
+        0.3154,
+        0.3328
       ],
-      "per_dollar_all_prizes": 0.4769,
+      "per_dollar_all_prizes": 0.5045,
       "per_dollar_all_prizes_range": [
-        0.4698,
-        0.4849
+        0.4965,
+        0.5136
       ],
       "parts": {
-        "gold_ball": 0.1938,
-        "classic_jackpot": 0.1018,
+        "gold_ball": 0.2209,
+        "classic_jackpot": 0.1027,
         "super_draw": 0.0,
-        "lower_tiers": 0.1812
+        "lower_tiers": 0.181
       },
       "odds_one_in": {
-        "jackpot": 85980871,
+        "jackpot": 76957866,
         "classic_jackpot": 13983816,
-        "million_plus": 3418913
+        "million_plus": 3274336
       },
       "price": 3
     },
-    "as_of": "2026-11-01T00:07:05Z"
+    "as_of": "2026-11-01T08:38:57Z"
   },
   "lottomax": {
     "draw_number": 1284,
@@ -82,23 +82,23 @@
       },
       "price": 6
     },
-    "as_of": "2026-11-01T00:07:05Z"
+    "as_of": "2026-11-01T08:38:57Z"
   },
   "recommendation": {
     "play": false,
     "min_per_dollar": 0.4,
     "top_prizes": {
       "game": "lotto649",
-      "per_dollar": 0.2957,
+      "per_dollar": 0.3236,
       "runner_up_per_dollar": 0.2055,
-      "margin": 0.0902,
+      "margin": 0.1181,
       "close_call": false
     },
     "all_prizes": {
       "game": "lotto649",
-      "per_dollar": 0.4769,
+      "per_dollar": 0.5045,
       "runner_up_per_dollar": 0.401,
-      "margin": 0.0759,
+      "margin": 0.1035,
       "close_call": false
     }
   },
