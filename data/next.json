@@ -1,5 +1,5 @@
 {
-  "scraped_at": "2026-11-10T04:47:19Z",
+  "scraped_at": "2026-11-10T18:41:48Z",
   "lotto649": {
     "draw_number": 4467,
     "draw_date": "2026-11-11",
@@ -40,7 +40,7 @@
       },
       "price": 3
     },
-    "as_of": "2026-11-10T04:47:19Z"
+    "as_of": "2026-11-10T18:41:48Z"
   },
   "lottomax": {
     "draw_number": 1286,
@@ -82,7 +82,7 @@
       },
       "price": 6
     },
-    "as_of": "2026-11-10T04:47:19Z"
+    "as_of": "2026-11-10T18:41:48Z"
   },
   "recommendation": {
     "play": false,
